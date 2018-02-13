@@ -1,0 +1,18 @@
+<stmt-list> → <stmt>; <stmt-list> | <stmt>;
+<stmt-list> → <conditional> <stmt-list>
+<stmt> → <declare>
+<stmt> → <assign>
+<declare> → <type> <assignment>
+<declare> → <type> <var>
+<type> → var
+<assignment> → <var> = <expression>
+<return> → return <expression>
+<conditional> → <if> | <while>
+<if> → if (<condition>) <stmt> else <stmt>
+<if> → if (<condition>) <stmt>
+<while> → while (<condition>) <stmt>
+<expression> → <expression> || <ored-expression> | <ored-expression>
+<ored-expression> → <ored-expression> && <anded-expression> | <anded-expression>
+NOTE: ask Connamacher about the associativity of the below:
+<anded-expression> → <anded-expression> > <anded-expression>
+TODO: finish for the rest of the comparision, !, and arithmetic operators, and condition
