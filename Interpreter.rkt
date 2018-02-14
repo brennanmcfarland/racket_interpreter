@@ -62,12 +62,16 @@
 
 (define M_state_while
   (lambda (nterm state)
-    state ;TODO
-    ))
+    ((eq? (car nterm) #t) (M_state_while nterm (M_state_stmt (cdr nterm))))
+    (else state)))
+
+(define declare_has_assign?
+  (lambda (nterm)
+    (eq? (len nterm) 3)))
 
 (define M_state_declare
   (lambda (nterm state)
-    state ;TODO
+    (if ())
     ))
 
 (define M_state_assign
