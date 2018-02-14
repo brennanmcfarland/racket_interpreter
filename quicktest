@@ -1,3 +1,2 @@
-var x;
-var y;
-x = 10;
+if (2 < 3)
+  return 3;

@@ -1,13 +1,12 @@
 <stmt-list> → <stmt>; <stmt-list> | <stmt>;
-TODO: it may be easier to write the functions if stmt-list resolves to only statements
-TODO: and statements can resolve to conditionals, it's still separated by a semicolon
-<stmt-list> → <conditional> <stmt-list>
+<stmt> → <if>
+<stmt> → <while>
 <stmt> → <declare>
 <stmt> → <assign>
-<declare> → <type> <assignment>
+<declare> → <type> <assign>
 <declare> → <type> <var>
 <type> → var
-<assignment> → <var> = <expression>
+<assign> → <var> = <expression>
 <return> → return <expression>
 <conditional> → <if> | <while>
 <if> → if (<condition>) <stmt> else <stmt>
@@ -19,5 +18,6 @@ NOTE: ask Connamacher about the associativity of the below:
 <anded-expression> → <anded-expression> > <anded-expression>
 TODO: finish for the rest of the comparision
 TODO: finish for !, and arithmetic operators, and condition, and whatever condition resolves to at the end
+TODO: and return, don't forget return
 
 <condition> →
