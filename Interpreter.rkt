@@ -102,7 +102,7 @@
 
 (define M_state_assign
   (lambda (nterm state)
-    state ;TODO
+    (add_to_state (car nterm) (cdr nterm) state)
     ))
 
 (define M_state_return
@@ -112,5 +112,11 @@
 
 (define M_value_condition
   (lambda (nterm state)
-    state ;TODO
-    ))
+    ((eq? (car nterm) #t) (
+    ))))
+    )
+
+  )
+(define M_boolean_condition
+  (lambda (nterm state)
+    (
