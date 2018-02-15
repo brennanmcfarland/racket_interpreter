@@ -38,6 +38,30 @@
   (lambda (function stmt state)
     (function (cdr stmt) state)))
 
+; given the whole state, get the list of names and values, respectively
+(define get_state_names
+  (lambda (state)
+    (car state)))
+
+(define get_state_values
+  (lambda (state)
+    (cdr state)))
+
+; perform a list operation on the state, both names and values are affected alike
+(define state_listop
+  (lambda (state function)
+    ((function (get_state_names state))(function (get_state_values state)))))
+
+; adds a variable to the state with the given name and value
+(define add_to_state
+  (lambda (name value state)
+    (cond
+      ; if we didn't find a previous value, add it, and if we did, replace it
+      ((eq? state '(()())) '((name)(value)))
+      ((feq? (get_state_names state) name) ((cons name (cdr get_state_names))(cons value (cdr get_state_values))))
+      ; if we're not at the end yet and haven't found it, recur
+      (else ((cons (car get_state_names) (add_to_state name value (state_listop state cdr)))(cons (car get_state_values) (add_to_state name value (state_listop value cdr))))))))
+
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
   (lambda (nterm state)
