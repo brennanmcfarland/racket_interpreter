@@ -71,8 +71,10 @@
 
 (define M_state_declare
   (lambda (nterm state)
-    (if ())
-    ))
+    (if (declare_has_assign nterm)
+        () ;add the variable to the state and assign it
+        () ;otherwise just assign it
+    )))
 
 (define M_state_assign
   (lambda (nterm state)
