@@ -113,7 +113,7 @@
 
 (define M_state_return
   (lambda (nterm state)
-    (add_to_state return (car nterm) state)
+    (add_to_state 'return (car nterm) state)
     (search return state)
     ))
 
