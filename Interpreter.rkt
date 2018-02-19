@@ -86,8 +86,10 @@
 
 (define M_state_while
   (lambda (nterm state)
-    ((eq? (car nterm) #t) (M_state_while nterm (M_state_stmt (cdr nterm))))
-    (else state)))
+    (cond
+      ((eq? (M_boolean_condition nterm state) #t) (M_state_while nterm (M_state_stmt (cdr nterm))))
+      ;((eq? (car nterm) #t) (M_state_while nterm (M_state_stmt (cdr nterm))))
+      (else state))))
 
 (define declare_has_assign?
   (lambda (nterm)
@@ -108,7 +110,16 @@
 (define M_state_return
   (lambda (nterm state)
     (add_to_state return (car nterm) state)
+    (search return state)
     ))
+
+;returns the value of a pair in the state ex: looking for y in (y 12) returns twleve
+(define search
+  (lambda (x state)
+    (cond
+      ((null? (car state)) value_not_present_in_state)
+      ((eq? x (car (car state))) (cadr (car state)))
+      (else (search (x (cdr state)))))))
 
 (define M_value_condition
   (lambda (nterm state)
@@ -117,4 +128,4 @@
 
 (define M_boolean_condition
   (lambda (nterm state)
-    ()))
+    (evaluate_comparative_exrpression_ored (car nterm)))) ;this would be the conditional
