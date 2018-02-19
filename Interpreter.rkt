@@ -29,8 +29,8 @@
 (define feq?
   (lambda (lis s)
     (if (and (list? lis) (not(null? lis)))
-         (eq? (car lis) s))
-         #f))
+         (eq? (car lis) s)
+         #f)))
 
 (define len
   (lambda (lis)
@@ -83,7 +83,7 @@
       ((type? (car nterm)) (call_on_stmt M_state_declare nterm state))
       ((feq? nterm '=) (call_on_stmt M_state_assign nterm state))
       ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ;TODO: forgot about this in the BNF!
-      (else (error "symbol not recognized")))))
+      (else (error (cons "symbol not recognized" (car nterm)))))))
 
 (define has_else?
   (lambda (nterm)
