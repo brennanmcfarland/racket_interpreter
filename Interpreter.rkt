@@ -28,9 +28,9 @@
 ; the S-expression
 (define feq?
   (lambda (lis s)
-    (if (list? lis)
-    (eq? (car lis) s)
-    #f)))
+    (if (and (list? lis) (not(null? lis)))
+         (eq? (car lis) s))
+         #f))
 
 (define len
   (lambda (lis)
