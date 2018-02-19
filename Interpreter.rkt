@@ -1,5 +1,10 @@
 (load "simpleParser.scm")
 
+; unassigned variables have this value
+(define error_value
+  (lambda ()
+    'error))
+
 (define interpret
   (lambda (filename)
     (evaluate_tree (parser filename))))
@@ -98,9 +103,8 @@
 (define M_state_declare
   (lambda (nterm state)
     (if (declare_has_assign nterm)
-        () ;add the variable to the state and assign it
-        () ;otherwise just assign it
-    )))
+        (add_to_state (car nterm) (cdr nterm) state) ;add the variable to the state and assign it
+        (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
 
 (define M_state_assign
   (lambda (nterm state)
@@ -128,4 +132,80 @@
 
 (define M_boolean_condition
   (lambda (nterm state)
+<<<<<<< HEAD
     (evaluate_comparative_exrpression_ored (car nterm)))) ;this would be the conditional
+=======
+    ()))
+
+(define M_boolean_ored_expression
+  (lambda (nterm state)
+    (if (feq? nterm '||)
+        (or (M_boolean_ored_expression (cadr nterm)) (M_boolean_ored_expression (cddr nterm)))
+        (M_boolean_anded_expression (cddr nterm)))))
+
+(define M_boolean_anded_expression
+  (lambda (nterm state)
+    (if (feq? nterm '&&)
+        (and (M_boolean_anded_expression (cadr nterm)) (M_boolean_anded_expression (cddr nterm)))
+        (M_boolean_compare_expression (cddr nterm)))))
+
+; helper function for comparing the two parts of an expression
+(define compare_value
+  (lambda (nterm state function)
+    (function (M_value_plus (cadr nterm) state) (M_value_plus (cddr nterm) state))))
+
+(define M_boolean_compare_expression
+  (lambda (nterm state)
+    (cond
+      ((feq? nterm '!) (not (M_boolean_compare_expression (cdr nterm) state)))
+      ((feq? nterm '==) (compare_value nterm state eq?))
+      ((feq? nterm '!=) (compare_value nterm state (not eq?)))
+      ((feq? nterm '<) (compare_value nterm state <))
+      ((feq? nterm '>) (compare_value nterm state >))
+      ((feq? nterm '<=) (compare_value nterm state <=))
+      ((feq? nterm '>=) (compare_value nterm state >=)))))
+
+(define M_value_plus
+  (lambda (nterm state)
+      (if (feq? nterm '+)
+          (+ (M_value_minus (cadr nterm) state) (M_value_minus (cddr nterm) state))
+          (M_value_minus nterm state))))
+
+(define M_value_minus
+  (lambda (nterm state)
+      (if (and (feq? nterm '-) (> (len nterm) 2))
+          (- (M_value_times (cadr nterm) state) (M_value_times (cddr nterm) state))
+          (M_value_times nterm state))))
+
+(define M_value_times
+  (lambda (nterm state)
+      (if (feq? nterm '*)
+          (* (M_value_div (cadr nterm) state) (M_value_div (cddr nterm) state))
+          (M_value_div nterm state))))
+
+(define M_value_div
+  (lambda (nterm state)
+      (if (feq? nterm '/)
+          (/ (M_value_mod (cadr nterm) state) (M_value_mod (cddr nterm) state))
+          (M_value_mod nterm state))))
+
+(define M_value_mod
+  (lambda (nterm state)
+      (if (feq? nterm '%)
+          (% (M_value_negative (cadr nterm) state) (M_value_negative (cddr nterm) state))
+          (M_value_negative nterm state))))
+
+(define M_value_negative
+  (lambda (nterm state)
+    (if (feq? nterm '-)
+        (* -1 (M_value_atom (cdr nterm)))
+        (M_value_terminal nterm))))
+
+(define M_value_terminal
+  (lambda (term state)
+    (cond
+      ((list? term) (error "terminal at the end of the parse tree"))
+      ((eq? term "true") #t)
+      ((eq? term "false") #f)
+      (else term))))
+>>>>>>> 5250b3763875adc5a0c478b3e1743ee777975b20
