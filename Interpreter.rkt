@@ -1,5 +1,10 @@
 (load "simpleParser.scm")
 
+; undeclared variables have this value
+(define undeclared_value
+  (lambda ()
+    'undeclared))
+
 ; unassigned variables have this value
 (define error_value
   (lambda ()
@@ -23,7 +28,9 @@
 ; the S-expression
 (define feq?
   (lambda (lis s)
-    (eq? (car lis) s)))
+    (if (list? lis)
+    (eq? (car lis) s)
+    #f)))
 
 (define len
   (lambda (lis)
@@ -76,7 +83,7 @@
       ((type? (car nterm)) (call_on_stmt M_state_declare nterm state))
       ((feq? nterm '=) (call_on_stmt M_state_assign nterm state))
       ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ;TODO: forgot about this in the BNF!
-      (else error))))
+      (else (error "symbol not recognized")))))
 
 (define has_else?
   (lambda (nterm)
@@ -85,7 +92,7 @@
 (define M_state_if
   (lambda (nterm state)
     (cond
-      ((eq? (M_value_condition (car nterm) state) #t) (M_state_stmt (cadr nterm) state))
+      ((eq? (M_boolean_condition (car nterm) state) #t) (M_state_stmt (cadr nterm) state))
       ((has_else? nterm) (M_state_stmt (cddr nterm) state))
       (else state))))
 
@@ -121,30 +128,25 @@
 (define search
   (lambda (x state)
     (cond
-      ((null? (car state)) value_not_present_in_state)
+      ((null? (car state)) (undeclared_value))
       ((eq? x (car (car state))) (cadr (car state)))
       (else (search (x (cdr state)))))))
 
-(define M_value_condition
-  (lambda (nterm state)
-    ((eq? (car nterm) #t) (
-    ))))
-
 (define M_boolean_condition
   (lambda (nterm state)
-    (M_boolean_ored_expression (car nterm)))) ;this would be the conditional
+    (M_boolean_ored_expression nterm state))) ;this would be the conditional
 
 (define M_boolean_ored_expression
   (lambda (nterm state)
     (if (feq? nterm '||)
-        (or (M_boolean_ored_expression (cadr nterm)) (M_boolean_ored_expression (cddr nterm)))
-        (M_boolean_anded_expression (cddr nterm)))))
+        (or (M_boolean_ored_expression (cadr nterm) state) (M_boolean_ored_expression (cddr nterm) state))
+        (M_boolean_anded_expression nterm state))))
 
 (define M_boolean_anded_expression
   (lambda (nterm state)
     (if (feq? nterm '&&)
-        (and (M_boolean_anded_expression (cadr nterm)) (M_boolean_anded_expression (cddr nterm)))
-        (M_boolean_compare_expression (cddr nterm)))))
+        (and (M_boolean_anded_expression (cadr nterm) state) (M_boolean_anded_expression (cddr nterm) state))
+        (M_boolean_compare_expression nterm state))))
 
 ; helper function for comparing the two parts of an expression
 (define compare_value
@@ -189,19 +191,20 @@
 (define M_value_mod
   (lambda (nterm state)
       (if (feq? nterm '%)
-          (% (M_value_negative (cadr nterm) state) (M_value_negative (cddr nterm) state))
+          (modulo (M_value_negative (cadr nterm) state) (M_value_negative (caddr nterm) state))
           (M_value_negative nterm state))))
 
 (define M_value_negative
   (lambda (nterm state)
     (if (feq? nterm '-)
         (* -1 (M_value_atom (cdr nterm)))
-        (M_value_terminal nterm))))
+        (M_value_terminal nterm state))))
 
 (define M_value_terminal
   (lambda (term state)
     (cond
-      ((list? term) (error "terminal at the end of the parse tree"))
+      ((list? term) (error "nonterminal at the end of the parse tree"))
       ((eq? term "true") #t)
       ((eq? term "false") #f)
+      ((not (eq? (search term state) (undeclared_value))) (search term))
       (else term))))
