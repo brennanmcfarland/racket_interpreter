@@ -28,9 +28,9 @@
 ; the S-expression
 (define feq?
   (lambda (lis s)
-    (if (list? lis)
-    (eq? (car lis) s)
-    #f)))
+    (if (and (list? lis) (not(null? lis)))
+         (eq? (car lis) s))
+         #f))
 
 (define len
   (lambda (lis)
@@ -120,7 +120,7 @@
 
 (define M_state_return
   (lambda (nterm state)
-    (add_to_state return (car nterm) state)
+    (add_to_state 'return (car nterm) state)
     (search return state)
     ))
 
