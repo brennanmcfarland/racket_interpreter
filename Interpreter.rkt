@@ -132,10 +132,7 @@
 
 (define M_boolean_condition
   (lambda (nterm state)
-<<<<<<< HEAD
-    (evaluate_comparative_exrpression_ored (car nterm)))) ;this would be the conditional
-=======
-    ()))
+    (M_boolean_ored_expression (car nterm)))) ;this would be the conditional
 
 (define M_boolean_ored_expression
   (lambda (nterm state)
@@ -208,4 +205,3 @@
       ((eq? term "true") #t)
       ((eq? term "false") #f)
       (else term))))
->>>>>>> 5250b3763875adc5a0c478b3e1743ee777975b20
