@@ -151,7 +151,7 @@
 ; helper function for comparing the two parts of an expression
 (define compare_value
   (lambda (nterm state function)
-    (function (M_value_plus (cadr nterm) state) (M_value_plus (cddr nterm) state))))
+    (function (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))))
 
 (define M_boolean_compare_expression
   (lambda (nterm state)
@@ -167,25 +167,25 @@
 (define M_value_plus
   (lambda (nterm state)
       (if (feq? nterm '+)
-          (+ (M_value_minus (cadr nterm) state) (M_value_minus (cddr nterm) state))
+          (+ (M_value_minus (cadr nterm) state) (M_value_minus (caddr nterm) state))
           (M_value_minus nterm state))))
 
 (define M_value_minus
   (lambda (nterm state)
       (if (and (feq? nterm '-) (> (len nterm) 2))
-          (- (M_value_times (cadr nterm) state) (M_value_times (cddr nterm) state))
+          (- (M_value_times (cadr nterm) state) (M_value_times (caddr nterm) state))
           (M_value_times nterm state))))
 
 (define M_value_times
   (lambda (nterm state)
       (if (feq? nterm '*)
-          (* (M_value_div (cadr nterm) state) (M_value_div (cddr nterm) state))
+          (* (M_value_div (cadr nterm) state) (M_value_div (caddr nterm) state))
           (M_value_div nterm state))))
 
 (define M_value_div
   (lambda (nterm state)
       (if (feq? nterm '/)
-          (/ (M_value_mod (cadr nterm) state) (M_value_mod (cddr nterm) state))
+          (/ (M_value_mod (cadr nterm) state) (M_value_mod (caddr nterm) state))
           (M_value_mod nterm state))))
 
 (define M_value_mod
