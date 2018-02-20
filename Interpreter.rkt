@@ -125,8 +125,8 @@
 
 (define M_state_return
   (lambda (nterm state)
-    (add_to_state 'return (car nterm) state)
-    (search 'return state)
+    (search 'return (add_to_state 'return M_value_plus(car nterm) state))
+    ;(search 'return state)
     ))
 
 ;returns the value of a pair in the state ex: looking for y in (y 12) returns twleve
