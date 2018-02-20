@@ -125,7 +125,7 @@
 
 (define M_state_return
   (lambda (nterm state)
-    (search 'return (add_to_state 'return (M_value_plus nterm state) state))
+    (search 'return (add_to_state 'return (M_value_plus (cadr (car nterm)) state) state))
     ;(search 'return state)
     ))
 
