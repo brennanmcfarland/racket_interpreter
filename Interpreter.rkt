@@ -133,10 +133,10 @@
 (define search
   (lambda (x state)
     (cond
-      ((null? (car state)) (undeclared_value))
-      ((eq? x (car (car state))) (cadr (car state)))
-      (else (search (x (cdr state)))))))
-
+      ((is_state_empty state) (undeclared_value))
+      ((eq? x (caar state)) (car (car (cdr state))))
+      (else (search x (cons (cdr (car state)) (list (cdr (car (cdr state))))))))))
+ 
 (define M_boolean_condition
   (lambda (nterm state)
     (M_boolean_ored_expression nterm state))) ;this would be the conditional
