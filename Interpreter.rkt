@@ -64,15 +64,20 @@
   (lambda (state function)
     ((function (get_state_names state))(function (get_state_values state)))))
 
+; helper function for if the state is empty
+(define is_state_empty
+  (lambda (state)
+    (and (null? (car state)) (null? (cadr state)))))
+
 ; adds a variable to the state with the given name and value
 (define add_to_state
   (lambda (name value state)
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
-      ((eq? state '(()())) '((name)(value)))
+      ((is_state_empty state) (cons (cons name '()) (cons (cons value '()) '())))
       ((feq? (get_state_names state) name) ((cons name (cdr get_state_names))(cons value (cdr get_state_values))))
       ; if we're not at the end yet and haven't found it, recur
-      (else ((cons (car get_state_names) (add_to_state name value (state_listop state cdr)))(cons (car get_state_values) (add_to_state name value (state_listop value cdr))))))))
+      (else (cons (car (get_state_names state)) (add_to_state name value (state_listop state cdr)))(cons (car get_state_values) (add_to_state name value (state_listop value cdr)))))))
 
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
@@ -121,7 +126,7 @@
 (define M_state_return
   (lambda (nterm state)
     (add_to_state 'return (car nterm) state)
-    (search return state)
+    (search 'return state)
     ))
 
 ;returns the value of a pair in the state ex: looking for y in (y 12) returns twleve
