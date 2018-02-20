@@ -125,7 +125,7 @@
 
 (define M_state_return
   (lambda (nterm state)
-    (search 'return (add_to_state 'return M_value_plus(car nterm) state))
+    (search 'return (add_to_state 'return (M_value_plus nterm state) state))
     ;(search 'return state)
     ))
 
@@ -172,43 +172,43 @@
 (define M_value_plus
   (lambda (nterm state)
       (if (feq? nterm '+)
-          (+ (M_value_minus (cadr nterm) state) (M_value_minus (caddr nterm) state))
+          (+ (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_minus nterm state))))
 
 (define M_value_minus
   (lambda (nterm state)
       (if (and (feq? nterm '-) (> (len nterm) 2))
-          (- (M_value_times (cadr nterm) state) (M_value_times (caddr nterm) state))
+          (- (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_times nterm state))))
 
 (define M_value_times
   (lambda (nterm state)
       (if (feq? nterm '*)
-          (* (M_value_div (cadr nterm) state) (M_value_div (caddr nterm) state))
+          (* (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_div nterm state))))
 
 (define M_value_div
   (lambda (nterm state)
       (if (feq? nterm '/)
-          (/ (M_value_mod (cadr nterm) state) (M_value_mod (caddr nterm) state))
+          (/ (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_mod nterm state))))
 
 (define M_value_mod
   (lambda (nterm state)
       (if (feq? nterm '%)
-          (modulo (M_value_negative (cadr nterm) state) (M_value_negative (caddr nterm) state))
+          (modulo (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_negative nterm state))))
 
 (define M_value_negative
   (lambda (nterm state)
     (if (feq? nterm '-)
-        (* -1 (M_value_atom (cdr nterm)))
+        (* -1 (M_value_plus (cdr nterm)))
         (M_value_terminal nterm state))))
 
 (define M_value_terminal
   (lambda (term state)
     (cond
-      ((list? term) (error "nonterminal at the end of the parse tree"))
+      ((list? term) (error (cons "nonterminal at the end of the parse tree" term)))
       ((eq? term "true") #t)
       ((eq? term "false") #f)
       ((not (eq? (search term state) (undeclared_value))) (search term))
