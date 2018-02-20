@@ -114,7 +114,7 @@
 
 (define M_state_declare
   (lambda (nterm state)
-    (if (declare_has_assign nterm)
+    (if (declare_has_assign? nterm)
         (add_to_state (car nterm) (cdr nterm) state) ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
 
@@ -125,7 +125,7 @@
 
 (define M_state_return
   (lambda (nterm state)
-    (search 'return (add_to_state 'return (M_value_plus (cadr (car nterm)) state) state))
+    (search 'return (add_to_state 'return (M_value_plus (car nterm) state) state))
     ;(search 'return state)
     ))
 
