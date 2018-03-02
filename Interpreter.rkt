@@ -16,7 +16,7 @@
 
 (define evaluate_tree
   (lambda (tree)
-    (M_state_stmt-list tree '(()()))))
+    (search 'return (M_state_stmt-list tree '(()())))))
 
 (define M_state_stmt-list
   (lambda (stmt-list state)
@@ -57,12 +57,12 @@
 
 (define get_state_values
   (lambda (state)
-    (cdr state)))
+    (cadr state)))
 
 ; perform a list operation on the state, both names and values are affected alike
 (define state_listop
   (lambda (state function)
-    ((function (get_state_names state))(function (get_state_values state)))))
+    (cons (function (get_state_names state)) (cons (function (get_state_values state)) '()))))
 
 ; helper function for if the state is empty
 (define is_state_empty
@@ -75,7 +75,7 @@
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
       ((is_state_empty state) (cons (cons name '()) (cons (cons value '()) '())))
-      ((feq? (get_state_names state) name) ((cons name (cdr get_state_names))(cons value (cdr get_state_values))))
+      ((feq? (get_state_names state) name) (get_state_names state)(cons value (get_state_values (state_listop state cdr))))
       ; if we're not at the end yet and haven't found it, recur
       (else (cons (car (get_state_names state)) (add_to_state name value (state_listop state cdr)))(cons (car get_state_values) (add_to_state name value (state_listop value cdr)))))))
 
