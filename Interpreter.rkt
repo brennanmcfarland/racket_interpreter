@@ -41,7 +41,7 @@
 ; a helper function: given a nonterminal, determine if it is a <type>
 (define type?
   (lambda (nterm)
-    (eq? nterm 'var))) ;TODO: this is a slight shortcut from the BNF, should probably change
+    (eq? nterm 'var))) 
 ;one or the other
 
 ; a helper function: given the "operative" (the first) element in the stmt's list, call a function
@@ -74,11 +74,22 @@
   (lambda (name value state)
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
+<<<<<<< HEAD
       ((is_state_empty state) (cons (cons name '()) (cons (cons value '()) '())))
       ((feq? (get_state_names state) name) (get_state_names state)(cons value (get_state_values (state_listop state cdr))))
+=======
+      ((is_state_empty state) (cons (list name) (list (cons value '()))))
+     ; ((feq? (get_state_names state) name) ((cons name (cdr (get_state_names state)))(cons value (cdr (get_state_values state)))))
+      ((feq? (get_state_names state) name) (cons (cons name (cdr (car state)))(list(cons value (cdr (car (cdr state)))))))
+>>>>>>> 447f38ece9577db53b08d013dd9dabd79f803c09
       ; if we're not at the end yet and haven't found it, recur
-      (else (cons (car (get_state_names state)) (add_to_state name value (state_listop state cdr)))(cons (car get_state_values) (add_to_state name value (state_listop value cdr)))))))
+      ;(else (cons (car (get_state_names state)) (car(add_to_state name value (state_listop state cdr))) (cadr(cons (car (get_state_values state) (add_to_state name value (state_listop value cdr))))))))))
+      (else (integrate (car (get_state_names state)) (car (car (get_state_values state))) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
 
+;
+(define integrate
+  (lambda (name value state)
+    (cons (cons name (car state)) (cons (cons value (car (cdr state))) '()))))
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
   (lambda (nterm state)
@@ -87,7 +98,7 @@
       ((feq? nterm 'while) (call_on_stmt M_state_while nterm state))
       ((type? (car nterm)) (call_on_stmt M_state_declare nterm state))
       ((feq? nterm '=) (call_on_stmt M_state_assign nterm state))
-      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ;TODO: forgot about this in the BNF!
+      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) 
       (else (error (cons "symbol not recognized" (car nterm)))))))
 
 (define has_else?
@@ -190,7 +201,7 @@
 (define M_value_div
   (lambda (nterm state)
       (if (feq? nterm '/)
-          (/ (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
+          (quotient (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_mod nterm state))))
 
 (define M_value_mod
@@ -211,5 +222,5 @@
       ((list? term) (error (cons "nonterminal at the end of the parse tree" term)))
       ((eq? term "true") #t)
       ((eq? term "false") #f)
-      ((not (eq? (search term state) (undeclared_value))) (search term))
+      ((not (eq? (search term state) (undeclared_value))) (search term state))
       (else term))))
