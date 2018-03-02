@@ -74,17 +74,12 @@
   (lambda (name value state)
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
-<<<<<<< HEAD
-      ((is_state_empty state) (cons (cons name '()) (cons (cons value '()) '())))
-      ((feq? (get_state_names state) name) (get_state_names state)(cons value (get_state_values (state_listop state cdr))))
-=======
       ((is_state_empty state) (cons (list name) (list (cons value '()))))
      ; ((feq? (get_state_names state) name) ((cons name (cdr (get_state_names state)))(cons value (cdr (get_state_values state)))))
       ((feq? (get_state_names state) name) (cons (cons name (cdr (car state)))(list(cons value (cdr (car (cdr state)))))))
->>>>>>> 447f38ece9577db53b08d013dd9dabd79f803c09
       ; if we're not at the end yet and haven't found it, recur
       ;(else (cons (car (get_state_names state)) (car(add_to_state name value (state_listop state cdr))) (cadr(cons (car (get_state_values state) (add_to_state name value (state_listop value cdr))))))))))
-      (else (integrate (car (get_state_names state)) (car (car (get_state_values state))) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
+      (else (integrate (car (get_state_names state)) (car (get_state_values state)) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
 
 ;
 (define integrate
@@ -98,7 +93,7 @@
       ((feq? nterm 'while) (call_on_stmt M_state_while nterm state))
       ((type? (car nterm)) (call_on_stmt M_state_declare nterm state))
       ((feq? nterm '=) (call_on_stmt M_state_assign nterm state))
-      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) 
+      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ; if we're returning x, it passes the name and not value to M_state_return 
       (else (error (cons "symbol not recognized" (car nterm)))))))
 
 (define has_else?
@@ -131,20 +126,20 @@
 
 (define M_state_assign
   (lambda (nterm state)
-    (add_to_state (car nterm) (cadr nterm) state)
+    (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
     ))
 
 (define M_state_return
   (lambda (nterm state)
-    (search 'return (add_to_state 'return (M_value_plus (car nterm) state) state))
-    ;(search 'return state)
-    ))
+    (if (equal? (search nterm state) undeclared_value)
+        (add_to_state 'return (M_value_plus (car nterm) state) state)
+        (add_to_state 'return (M_value_plus (search (car nterm) state) state) state))))
 
 ;returns the value of a pair in the state ex: looking for y in (y 12) returns twleve
 (define search
   (lambda (x state)
     (cond
-      ((is_state_empty state) (undeclared_value))
+      ((is_state_empty state) undeclared_value)
       ((eq? x (caar state)) (car (car (cdr state))))
       (else (search x (cons (cdr (car state)) (list (cdr (car (cdr state))))))))))
  
@@ -222,5 +217,5 @@
       ((list? term) (error (cons "nonterminal at the end of the parse tree" term)))
       ((eq? term "true") #t)
       ((eq? term "false") #f)
-      ((not (eq? (search term state) (undeclared_value))) (search term state))
+      ((not (eq? (search term state) undeclared_value)) (search term state))
       (else term))))
