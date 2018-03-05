@@ -25,11 +25,15 @@
   (lambda (tree)
     (search 'return (M_state_stmt-list tree '(()())))))
 
+(trace evaluate_tree)
+
 (define M_state_stmt-list
   (lambda (stmt-list state)
     (if (null? stmt-list)
         state
         (M_state_stmt-list (cdr stmt-list) (M_state_stmt (car stmt-list) state)))))
+
+(trace M_state_stmt-list)
 
 ; a helper function: given a list and S-expression, determine if the first element in the list equals
 ; the S-expression
@@ -94,12 +98,15 @@
       ((is_state_empty state) #f)
       ((feq? (get_state_names state) name) #t)
       ; if we're not at the end yet and haven't found it, recur
-      (else (integrate (car (get_state_names state)) (car (get_state_values state)) (is_in_state name (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
+      (else (is_in_state name (cons (cdr (car state)) (cons (cdr (car (cdr state))) '())))))))
 
+(trace is_in_state)
 ;
 (define integrate
   (lambda (name value state)
     (cons (cons name (car state)) (cons (cons value (car (cdr state))) '()))))
+
+(trace integrate)
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
   (lambda (nterm state)
@@ -147,6 +154,8 @@
         (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
         (error (cons "variable use before declaration, bad!" (car nterm)))
     )))
+
+(trace M_state_assign)
 
 (define M_state_return
   (lambda (nterm state)
