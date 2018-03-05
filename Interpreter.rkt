@@ -109,7 +109,7 @@
   (lambda (nterm state)
     (cond
       ((eq? (M_boolean_condition (car nterm) state) #t) (M_state_stmt (cadr nterm) state))
-      ((has_else? nterm) (M_state_stmt (cddr nterm) state))
+      ((has_else? nterm) (M_state_stmt (caddr nterm) state))
       (else state))))
 
 (define M_state_while
@@ -126,7 +126,7 @@
 (define M_state_declare
   (lambda (nterm state)
     (if (declare_has_assign? nterm)
-        (add_to_state (car nterm) (cadr nterm) state) ;add the variable to the state and assign it
+        (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state) ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
 
 (define M_state_assign
@@ -174,7 +174,7 @@
     (cond
       ((feq? nterm '!) (not (M_boolean_compare_expression (cdr nterm) state)))
       ((feq? nterm '==) (compare_value nterm state eq?))
-      ((feq? nterm '!=) (compare_value nterm state (not eq?)))
+      ((feq? nterm '!=) (compare_value nterm state (lambda (x y) (not (equal? x y)))))
       ((feq? nterm '<) (compare_value nterm state <))
       ((feq? nterm '>) (compare_value nterm state >))
       ((feq? nterm '<=) (compare_value nterm state <=))
@@ -213,7 +213,7 @@
 (define M_value_negative
   (lambda (nterm state)
     (if (feq? nterm '-)
-        (* -1 (M_value_plus (cdr nterm)))
+        (* -1 (M_value_plus (cadr nterm) state))
         (M_value_terminal nterm state))))
 
 (define M_value_terminal
