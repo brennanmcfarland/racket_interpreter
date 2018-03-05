@@ -1,5 +1,7 @@
 (load "simpleParser.scm")
 
+(require racket/trace)
+
 ; undeclared variables have this value
 (define undeclared_value
   (lambda ()
@@ -123,6 +125,8 @@
     (if (declare_has_assign? nterm)
         (add_to_state (car nterm) (cdr nterm) state) ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
+
+(trace M_state_declare)
 
 (define M_state_assign
   (lambda (nterm state)

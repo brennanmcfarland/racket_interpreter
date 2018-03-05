@@ -16,7 +16,7 @@
 
 (define evaluate_tree
   (lambda (tree)
-    (M_state_stmt-list tree '(()()))))
+    (search 'return (M_state_stmt-list tree '(()())))))
 
 (define M_state_stmt-list
   (lambda (stmt-list state)
@@ -41,7 +41,7 @@
 ; a helper function: given a nonterminal, determine if it is a <type>
 (define type?
   (lambda (nterm)
-    (eq? nterm 'var))) ;TODO: this is a slight shortcut from the BNF, should probably change
+    (eq? nterm 'var))) 
 ;one or the other
 
 ; a helper function: given the "operative" (the first) element in the stmt's list, call a function
@@ -57,12 +57,12 @@
 
 (define get_state_values
   (lambda (state)
-    (cdr state)))
+    (cadr state)))
 
 ; perform a list operation on the state, both names and values are affected alike
 (define state_listop
   (lambda (state function)
-    ((function (get_state_names state))(function (get_state_values state)))))
+    (cons (function (get_state_names state)) (cons (function (get_state_values state)) '()))))
 
 ; helper function for if the state is empty
 (define is_state_empty
@@ -74,11 +74,17 @@
   (lambda (name value state)
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
-      ((is_state_empty state) (cons (cons name '()) (cons (cons value '()) '())))
-      ((feq? (get_state_names state) name) ((cons name (cdr get_state_names))(cons value (cdr get_state_values))))
+      ((is_state_empty state) (cons (list name) (list (cons value '()))))
+     ; ((feq? (get_state_names state) name) ((cons name (cdr (get_state_names state)))(cons value (cdr (get_state_values state)))))
+      ((feq? (get_state_names state) name) (cons (cons name (cdr (car state)))(list(cons value (cdr (car (cdr state)))))))
       ; if we're not at the end yet and haven't found it, recur
-      (else (cons (car (get_state_names state)) (add_to_state name value (state_listop state cdr)))(cons (car get_state_values) (add_to_state name value (state_listop value cdr)))))))
+      ;(else (cons (car (get_state_names state)) (car(add_to_state name value (state_listop state cdr))) (cadr(cons (car (get_state_values state) (add_to_state name value (state_listop value cdr))))))))))
+      (else (integrate (car (get_state_names state)) (car (get_state_values state)) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
 
+;
+(define integrate
+  (lambda (name value state)
+    (cons (cons name (car state)) (cons (cons value (car (cdr state))) '()))))
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
   (lambda (nterm state)
@@ -87,7 +93,7 @@
       ((feq? nterm 'while) (call_on_stmt M_state_while nterm state))
       ((type? (car nterm)) (call_on_stmt M_state_declare nterm state))
       ((feq? nterm '=) (call_on_stmt M_state_assign nterm state))
-      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ;TODO: forgot about this in the BNF!
+      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ; if we're returning x, it passes the name and not value to M_state_return 
       (else (error (cons "symbol not recognized" (car nterm)))))))
 
 (define has_else?
@@ -114,28 +120,28 @@
 
 (define M_state_declare
   (lambda (nterm state)
-    (if (declare_has_assign nterm)
+    (if (declare_has_assign? nterm)
         (add_to_state (car nterm) (cdr nterm) state) ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
 
 (define M_state_assign
   (lambda (nterm state)
-    (add_to_state (car nterm) (cadr nterm) state)
+    (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
     ))
 
 (define M_state_return
   (lambda (nterm state)
-    (add_to_state 'return (car nterm) state)
-    (search 'return state)
-    ))
+    (if (equal? (search nterm state) undeclared_value)
+        (add_to_state 'return (M_value_plus (car nterm) state) state)
+        (add_to_state 'return (M_value_plus (search (car nterm) state) state) state))))
 
 ;returns the value of a pair in the state ex: looking for y in (y 12) returns twleve
 (define search
   (lambda (x state)
     (cond
-      ((is_state_empty state) (undeclared_value))
-      ((eq? x (caar state)) (car (cdr state)))
-      (else (search x (list (cons (cdr (car state)) (list (cdr (car (cdr state)))))))))))
+      ((is_state_empty state) undeclared_value)
+      ((eq? x (caar state)) (car (car (cdr state))))
+      (else (search x (cons (cdr (car state)) (list (cdr (car (cdr state))))))))))
  
 (define M_boolean_condition
   (lambda (nterm state)
@@ -172,44 +178,44 @@
 (define M_value_plus
   (lambda (nterm state)
       (if (feq? nterm '+)
-          (+ (M_value_minus (cadr nterm) state) (M_value_minus (caddr nterm) state))
+          (+ (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_minus nterm state))))
 
 (define M_value_minus
   (lambda (nterm state)
       (if (and (feq? nterm '-) (> (len nterm) 2))
-          (- (M_value_times (cadr nterm) state) (M_value_times (caddr nterm) state))
+          (- (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_times nterm state))))
 
 (define M_value_times
   (lambda (nterm state)
       (if (feq? nterm '*)
-          (* (M_value_div (cadr nterm) state) (M_value_div (caddr nterm) state))
+          (* (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_div nterm state))))
 
 (define M_value_div
   (lambda (nterm state)
       (if (feq? nterm '/)
-          (/ (M_value_mod (cadr nterm) state) (M_value_mod (caddr nterm) state))
+          (quotient (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_mod nterm state))))
 
 (define M_value_mod
   (lambda (nterm state)
       (if (feq? nterm '%)
-          (modulo (M_value_negative (cadr nterm) state) (M_value_negative (caddr nterm) state))
+          (modulo (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
           (M_value_negative nterm state))))
 
 (define M_value_negative
   (lambda (nterm state)
     (if (feq? nterm '-)
-        (* -1 (M_value_atom (cdr nterm)))
+        (* -1 (M_value_plus (cdr nterm)))
         (M_value_terminal nterm state))))
 
 (define M_value_terminal
   (lambda (term state)
     (cond
-      ((list? term) (error "nonterminal at the end of the parse tree"))
+      ((list? term) (error (cons "nonterminal at the end of the parse tree" term)))
       ((eq? term "true") #t)
       ((eq? term "false") #f)
-      ((not (eq? (search term state) (undeclared_value))) (search term))
+      ((not (eq? (search term state) undeclared_value)) (search term state))
       (else term))))
