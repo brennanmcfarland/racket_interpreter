@@ -80,11 +80,19 @@
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
       ((is_state_empty state) (cons (list name) (list (cons value '()))))
-     ; ((feq? (get_state_names state) name) ((cons name (cdr (get_state_names state)))(cons value (cdr (get_state_values state)))))
       ((feq? (get_state_names state) name) (cons (cons name (cdr (car state)))(list(cons value (cdr (car (cdr state)))))))
       ; if we're not at the end yet and haven't found it, recur
-      ;(else (cons (car (get_state_names state)) (car(add_to_state name value (state_listop state cdr))) (cadr(cons (car (get_state_values state) (add_to_state name value (state_listop value cdr))))))))))
       (else (integrate (car (get_state_names state)) (car (get_state_values state)) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
+
+; check if a variable is in the state
+(define is_in_state
+  (lambda (name state)
+    (cond
+      ; we didn't find a previous value
+      ((is_state_empty state) #f)
+      ((feq? (get_state_names state) name) #t)
+      ; if we're not at the end yet and haven't found it, recur
+      (else (integrate (car (get_state_names state)) (car (get_state_values state)) (is_in_state name (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
 
 ;
 (define integrate
@@ -131,8 +139,10 @@
 
 (define M_state_assign
   (lambda (nterm state)
-    (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
-    ))
+    (if (is_in_state (car nterm) state)
+        (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
+        (error (cons "variable use before declaration, bad!" (car nterm)))
+    )))
 
 (define M_state_return
   (lambda (nterm state)
