@@ -1,3 +1,6 @@
+; Brennan McFarland
+; Lucas Alva
+
 (load "simpleParser.scm")
 
 (require racket/trace)
@@ -8,6 +11,8 @@
     'undeclared))
 
 ; unassigned variables have this value
+
+
 (define error_value
   (lambda ()
     'error))
@@ -77,11 +82,19 @@
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
       ((is_state_empty state) (cons (list name) (list (cons value '()))))
-     ; ((feq? (get_state_names state) name) ((cons name (cdr (get_state_names state)))(cons value (cdr (get_state_values state)))))
       ((feq? (get_state_names state) name) (cons (cons name (cdr (car state)))(list(cons value (cdr (car (cdr state)))))))
       ; if we're not at the end yet and haven't found it, recur
-      ;(else (cons (car (get_state_names state)) (car(add_to_state name value (state_listop state cdr))) (cadr(cons (car (get_state_values state) (add_to_state name value (state_listop value cdr))))))))))
       (else (integrate (car (get_state_names state)) (car (get_state_values state)) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
+
+; check if a variable is in the state
+(define is_in_state
+  (lambda (name state)
+    (cond
+      ; we didn't find a previous value
+      ((is_state_empty state) #f)
+      ((feq? (get_state_names state) name) #t)
+      ; if we're not at the end yet and haven't found it, recur
+      (else (integrate (car (get_state_names state)) (car (get_state_values state)) (is_in_state name (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
 
 ;
 (define integrate
@@ -106,7 +119,7 @@
   (lambda (nterm state)
     (cond
       ((eq? (M_boolean_condition (car nterm) state) #t) (M_state_stmt (cadr nterm) state))
-      ((has_else? nterm) (M_state_stmt (cddr nterm) state))
+      ((has_else? nterm) (M_state_stmt (caddr nterm) state))
       (else state))))
 
 (define M_state_while
@@ -118,20 +131,22 @@
 
 (define declare_has_assign?
   (lambda (nterm)
-    (eq? (len nterm) 3)))
+    (eq? (len nterm) 2)))
 
 (define M_state_declare
   (lambda (nterm state)
     (if (declare_has_assign? nterm)
-        (add_to_state (car nterm) (cdr nterm) state) ;add the variable to the state and assign it
+        (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state) ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
 
 (trace M_state_declare)
 
 (define M_state_assign
   (lambda (nterm state)
-    (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
-    ))
+    (if (is_in_state (car nterm) state)
+        (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
+        (error (cons "variable use before declaration, bad!" (car nterm)))
+    )))
 
 (define M_state_return
   (lambda (nterm state)
@@ -173,7 +188,7 @@
     (cond
       ((feq? nterm '!) (not (M_boolean_compare_expression (cdr nterm) state)))
       ((feq? nterm '==) (compare_value nterm state eq?))
-      ((feq? nterm '!=) (compare_value nterm state (not eq?)))
+      ((feq? nterm '!=) (compare_value nterm state (lambda (x y) (not (equal? x y)))))
       ((feq? nterm '<) (compare_value nterm state <))
       ((feq? nterm '>) (compare_value nterm state >))
       ((feq? nterm '<=) (compare_value nterm state <=))
@@ -212,7 +227,7 @@
 (define M_value_negative
   (lambda (nterm state)
     (if (feq? nterm '-)
-        (* -1 (M_value_plus (cdr nterm)))
+        (* -1 (M_value_plus (cadr nterm) state))
         (M_value_terminal nterm state))))
 
 (define M_value_terminal

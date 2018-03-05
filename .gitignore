@@ -1,3 +1,6 @@
 #temp save files
 *.rkt~
 *.bak
+
+#.html program files
+*.html
