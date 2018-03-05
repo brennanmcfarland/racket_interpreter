@@ -1,3 +1,6 @@
+; Brennan McFarland
+; Lucas Alva
+
 (load "simpleParser.scm")
 
 ; undeclared variables have this value
@@ -6,6 +9,8 @@
     'undeclared))
 
 ; unassigned variables have this value
+
+
 (define error_value
   (lambda ()
     'error))
@@ -116,12 +121,12 @@
 
 (define declare_has_assign?
   (lambda (nterm)
-    (eq? (len nterm) 3)))
+    (eq? (len nterm) 2)))
 
 (define M_state_declare
   (lambda (nterm state)
     (if (declare_has_assign? nterm)
-        (add_to_state (car nterm) (cdr nterm) state) ;add the variable to the state and assign it
+        (add_to_state (car nterm) (cadr nterm) state) ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
 
 (define M_state_assign
