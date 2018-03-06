@@ -5,14 +5,28 @@
 
 (require racket/trace)
 
+(define error_undeclared_variable
+  (lambda (var)
+    (error "variable use before declaration: " var)))
+
+(define error_unassigned_variable
+  (lambda (var)
+    (error "variable use before assignment: " var)))
+
+(define error_unrecognized_symbol
+  (lambda (var)
+    (error "symbol not recognized: " var)))
+
+(define error_parse_failure
+  (lambda (var)
+    (error "nonterminal at the end of the parse tree" var)))
+    
 ; undeclared variables have this value
 (define undeclared_value
   (lambda ()
     'undeclared))
 
 ; unassigned variables have this value
-
-
 (define error_value
   (lambda ()
     'error))
@@ -25,7 +39,7 @@
   (lambda (tree)
     (search 'return (M_state_stmt-list tree '(()())))))
 
-(trace evaluate_tree)
+;(trace evaluate_tree)
 
 (define M_state_stmt-list
   (lambda (stmt-list state)
@@ -33,7 +47,7 @@
         state
         (M_state_stmt-list (cdr stmt-list) (M_state_stmt (car stmt-list) state)))))
 
-(trace M_state_stmt-list)
+;(trace M_state_stmt-list)
 
 ; a helper function: given a list and S-expression, determine if the first element in the list equals
 ; the S-expression
@@ -100,13 +114,13 @@
       ; if we're not at the end yet and haven't found it, recur
       (else (is_in_state name (cons (cdr (car state)) (cons (cdr (car (cdr state))) '())))))))
 
-(trace is_in_state)
+; (trace is_in_state)
 ;
 (define integrate
   (lambda (name value state)
     (cons (cons name (car state)) (cons (cons value (car (cdr state))) '()))))
 
-(trace integrate)
+; (trace integrate)
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
   (lambda (nterm state)
@@ -116,7 +130,7 @@
       ((type? (car nterm)) (call_on_stmt M_state_declare nterm state))
       ((feq? nterm '=) (call_on_stmt M_state_assign nterm state))
       ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ; if we're returning x, it passes the name and not value to M_state_return 
-      (else (error (cons "symbol not recognized" (car nterm)))))))
+      (else (error_unrecognized_symbol (car nterm))))))
 
 (define has_else?
   (lambda (nterm)
@@ -146,16 +160,17 @@
         (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state) ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
 
-(trace M_state_declare)
+;(trace M_state_declare)
 
 (define M_state_assign
   (lambda (nterm state)
     (if (is_in_state (car nterm) state)
         (add_to_state (car nterm) (M_value_plus (cadr nterm) state) state)
-        (error (cons "variable use before declaration, bad!" (car nterm)))
+        ; checking for undeclaration
+        (error_undeclared_variable (car nterm))
     )))
 
-(trace M_state_assign)
+;(trace M_state_assign)
 
 (define M_state_return
   (lambda (nterm state)
@@ -171,6 +186,8 @@
       ((eq? x (caar state)) (car (car (cdr state))))
       (else (search x (cons (cdr (car state)) (list (cdr (car (cdr state))))))))))
  
+ 
+; evaluates a conditional as true or false
 (define M_boolean_condition
   (lambda (nterm state)
     (M_boolean_ored_expression nterm state))) ;this would be the conditional
@@ -242,8 +259,11 @@
 (define M_value_terminal
   (lambda (term state)
     (cond
-      ((list? term) (error (cons "nonterminal at the end of the parse tree" term)))
+      ((list? term) (error_parse_failure term))
       ((eq? term "true") #t)
       ((eq? term "false") #f)
+      ((eq? (search term state) (error_value)) (error_unassigned_variable term))
       ((not (eq? (search term state) undeclared_value)) (search term state))
-      (else term))))
+      ((number? term) term)
+      ; checking if undeclared
+      (else (error_undeclared_variable term)))))
