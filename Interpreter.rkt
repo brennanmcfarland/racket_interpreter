@@ -1,5 +1,26 @@
+; Brennan McFarland
+; Lucas Alva
+
 (load "simpleParser.scm")
 
+(require racket/trace)
+
+(define error_undeclared_variable
+  (lambda (var)
+    (error "variable use before declaration: " var)))
+
+(define error_unassigned_variable
+  (lambda (var)
+    (error "variable use before assignment: " var)))
+
+(define error_unrecognized_symbol
+  (lambda (var)
+    (error "symbol not recognized: " var)))
+
+(define error_parse_failure
+  (lambda (var)
+    (error "nonterminal at the end of the parse tree" var)))
+    
 ; undeclared variables have this value
 (define undeclared_value
   (lambda ()
@@ -16,13 +37,17 @@
 
 (define evaluate_tree
   (lambda (tree)
-    (M_state_stmt-list tree '(()()))))
+    (search 'return (M_state_stmt-list tree '(()())))))
+
+(trace evaluate_tree)
 
 (define M_state_stmt-list
   (lambda (stmt-list state)
     (if (null? stmt-list)
         state
         (M_state_stmt-list (cdr stmt-list) (M_state_stmt (car stmt-list) state)))))
+
+(trace M_state_stmt-list)
 
 ; a helper function: given a list and S-expression, determine if the first element in the list equals
 ; the S-expression
@@ -50,6 +75,7 @@
   (lambda (function stmt state)
     (function (cdr stmt) state)))
 
+(trace call_on_stmt)
 ; given the whole state, get the list of names and values, respectively
 (define get_state_names
   (lambda (state)
@@ -57,12 +83,12 @@
 
 (define get_state_values
   (lambda (state)
-    (cdr state)))
+    (cadr state)))
 
 ; perform a list operation on the state, both names and values are affected alike
 (define state_listop
   (lambda (state function)
-    ((function (get_state_names state))(function (get_state_values state)))))
+    (cons (function (get_state_names state)) (cons (function (get_state_values state)) '()))))
 
 ; helper function for if the state is empty
 (define is_state_empty
@@ -75,16 +101,29 @@
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
       ((is_state_empty state) (cons (list name) (list (cons value '()))))
-     ; ((feq? (get_state_names state) name) ((cons name (cdr (get_state_names state)))(cons value (cdr (get_state_values state)))))
       ((feq? (get_state_names state) name) (cons (cons name (cdr (car state)))(list(cons value (cdr (car (cdr state)))))))
       ; if we're not at the end yet and haven't found it, recur
-      ;(else (cons (car (get_state_names state)) (car(add_to_state name value (state_listop state cdr))) (cadr(cons (car (get_state_values state) (add_to_state name value (state_listop value cdr))))))))))
-      (else (integrate (car (get_state_names state)) (car (car (get_state_values state))) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
+      (else (integrate (car (get_state_names state)) (car (get_state_values state)) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
 
+(trace add_to_state)
+
+; check if a variable is in the state
+(define is_in_state
+  (lambda (name state)
+    (cond
+      ; we didn't find a previous value
+      ((is_state_empty state) #f)
+      ((feq? (get_state_names state) name) #t)
+      ; if we're not at the end yet and haven't found it, recur
+      (else (is_in_state name (cons (cdr (car state)) (cons (cdr (car (cdr state))) '())))))))
+
+; (trace is_in_state)
 ;
 (define integrate
   (lambda (name value state)
     (cons (cons name (car state)) (cons (cons value (car (cdr state))) '()))))
+
+; (trace integrate)
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
   (lambda (nterm state)
@@ -93,8 +132,10 @@
       ((feq? nterm 'while) (call_on_stmt M_state_while nterm state))
       ((type? (car nterm)) (call_on_stmt M_state_declare nterm state))
       ((feq? nterm '=) (call_on_stmt M_state_assign nterm state))
-      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) 
-      (else (error (cons "symbol not recognized" (car nterm)))))))
+      ((feq? nterm 'return) (call_on_stmt M_state_return nterm state)) ; if we're returning x, it passes the name and not value to M_state_return 
+      (else (error_unrecognized_symbol (car nterm))))))
+
+(trace M_state_stmt)
 
 (define has_else?
   (lambda (nterm)
@@ -104,7 +145,7 @@
   (lambda (nterm state)
     (cond
       ((eq? (M_boolean_condition (car nterm) state) #t) (M_state_stmt (cadr nterm) state))
-      ((has_else? nterm) (M_state_stmt (cddr nterm) state))
+      ((has_else? nterm) (M_state_stmt (caddr nterm) state))
       (else state))))
 
 (define M_state_while
@@ -116,33 +157,50 @@
 
 (define declare_has_assign?
   (lambda (nterm)
-    (eq? (len nterm) 3)))
+    (eq? (len nterm) 2)))
+
+(trace declare_has_assign?)
 
 (define M_state_declare
   (lambda (nterm state)
     (if (declare_has_assign? nterm)
-        (add_to_state (car nterm) (cdr nterm) state) ;add the variable to the state and assign it
+        (add_to_state (car nterm) (M_boolean_compare_expression (cadr nterm) state) state) ;M_value_plus previously ;add the variable to the state and assign it
         (add_to_state (car nterm) (error_value) state)))) ;otherwise just assign it error
+
+(trace M_state_declare)
 
 (define M_state_assign
   (lambda (nterm state)
-    (add_to_state (car nterm) (cadr nterm) state)
-    ))
+    (if (is_in_state (car nterm) state)
+        (add_to_state (car nterm) (M_boolean_compare_expression (cadr nterm) state) state) ;M_value_plus previously
+        ; checking for undeclaration
+        (error_undeclared_variable (car nterm))
+    )))
+
+(trace M_state_assign)
 
 (define M_state_return
   (lambda (nterm state)
-    (search 'return (add_to_state 'return (M_value_plus (car nterm) state) state))
-    ;(search 'return state)
-    ))
+    (if (equal? (search nterm state) undeclared_value)
+        ;(add_to_state 'return (M_value_plus (car nterm) state) state)
+        ;(add_to_state 'return (M_value_plus (search (car nterm) state) state) state)))
+        (add_to_state 'return (M_boolean_condition (car nterm) state) state)
+        (add_to_state 'return (M_boolean_condition (search (car nterm) state) state) state))))
+
+
+(trace M_state_return)
 
 ;returns the value of a pair in the state ex: looking for y in (y 12) returns twleve
 (define search
   (lambda (x state)
     (cond
-      ((is_state_empty state) (undeclared_value))
+      ((is_state_empty state) undeclared_value)
       ((eq? x (caar state)) (car (car (cdr state))))
       (else (search x (cons (cdr (car state)) (list (cdr (car (cdr state))))))))))
+
+(trace search)
  
+; evaluates a conditional as true or false
 (define M_boolean_condition
   (lambda (nterm state)
     (M_boolean_ored_expression nterm state))) ;this would be the conditional
@@ -150,30 +208,32 @@
 (define M_boolean_ored_expression
   (lambda (nterm state)
     (if (feq? nterm '||)
-        (or (M_boolean_ored_expression (cadr nterm) state) (M_boolean_ored_expression (cddr nterm) state))
+        (or (M_boolean_ored_expression (cadr nterm) state) (M_boolean_ored_expression (caddr nterm) state)) ;cddr
         (M_boolean_anded_expression nterm state))))
 
 (define M_boolean_anded_expression
   (lambda (nterm state)
     (if (feq? nterm '&&)
-        (and (M_boolean_anded_expression (cadr nterm) state) (M_boolean_anded_expression (cddr nterm) state))
+        (and (M_boolean_anded_expression (cadr nterm) state) (M_boolean_anded_expression (caddr nterm) state)) ;cddr
         (M_boolean_compare_expression nterm state))))
 
 ; helper function for comparing the two parts of an expression
 (define compare_value
   (lambda (nterm state function)
-    (function (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))))
+    (function (M_boolean_compare_expression (cadr nterm) state) (M_value_plus (caddr nterm) state)))) ;previously M_value_plus
 
 (define M_boolean_compare_expression
   (lambda (nterm state)
     (cond
-      ((feq? nterm '!) (not (M_boolean_compare_expression (cdr nterm) state)))
+      ((feq? nterm '!) (not (M_boolean_compare_expression (cdr nterm) state))) ;issues with this one and test 18
       ((feq? nterm '==) (compare_value nterm state eq?))
-      ((feq? nterm '!=) (compare_value nterm state (not eq?)))
+      ((feq? nterm '!=) (compare_value nterm state (lambda (x y) (not (equal? x y)))))
       ((feq? nterm '<) (compare_value nterm state <))
       ((feq? nterm '>) (compare_value nterm state >))
       ((feq? nterm '<=) (compare_value nterm state <=))
-      ((feq? nterm '>=) (compare_value nterm state >=)))))
+      ((feq? nterm '>=) (compare_value nterm state >=))
+      ;added this line
+      (else (M_value_plus nterm state)))))
 
 (define M_value_plus
   (lambda (nterm state)
@@ -202,20 +262,44 @@
 (define M_value_mod
   (lambda (nterm state)
       (if (feq? nterm '%)
-          (modulo (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state))
+          (modulo (M_value_plus (cadr nterm) state) (M_value_plus (caddr nterm) state)) 
           (M_value_negative nterm state))))
 
 (define M_value_negative
   (lambda (nterm state)
     (if (feq? nterm '-)
-        (* -1 (M_value_plus (cdr nterm)))
+        (* -1 (M_value_plus (cadr nterm) state))
         (M_value_terminal nterm state))))
 
 (define M_value_terminal
   (lambda (term state)
     (cond
-      ((list? term) (error (cons "nonterminal at the end of the parse tree" term)))
-      ((eq? term "true") #t)
-      ((eq? term "false") #f)
-      ((not (eq? (search term state) (undeclared_value))) (search term state))
-      (else term))))
+      ((list? term) (error_parse_failure term))
+      ((eq? term 'true) "true") ;:true" and #t previously
+      ((eq? term "false") "false") ;#f previously
+      
+      ((eq? (search term state) (error_value)) (error_unassigned_variable term))
+      ((not (eq? (search term state) undeclared_value)) (search term state))
+;<<<<<<< HEAD
+     ; (else term))))
+
+;(trace M_value_terminal)
+
+
+;=======
+      ((number? term) term)
+      ; checking if undeclared
+      (else (error_undeclared_variable term)))))
+;>>>>>>> 7ec62fd932a4ecf054acf6777d9752af56c34fb8
+(trace M_value_plus)
+(trace M_value_minus)
+(trace M_value_times)
+(trace M_value_div)
+(trace M_value_mod)
+(trace M_value_negative)
+(trace M_boolean_condition)
+(trace  M_boolean_ored_expression)
+(trace  M_boolean_anded_expression)
+(trace compare_value)
+(trace  M_boolean_compare_expression)
+(trace M_value_terminal)
