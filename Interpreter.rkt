@@ -37,7 +37,15 @@
 
 (define evaluate_tree
   (lambda (tree)
-    (search 'return (M_state_stmt-list tree '(()())))))
+    (printval (search 'return (M_state_stmt-list tree '(()()))))))
+
+; converts a value from internal representation to what it is displayed as to the user
+(define printval
+  (lambda (value)
+    (cond
+      ((eq? value #t) 'true)
+      ((eq? value #f) 'false)
+      (else value))))
 
 (trace evaluate_tree)
 
@@ -151,7 +159,7 @@
 (define M_state_while
   (lambda (nterm state)
     (cond
-      ((eq? (M_boolean_condition nterm state) #t) (M_state_while nterm (M_state_stmt (cdr nterm))))
+      ((eq? (M_boolean_condition (car nterm) state) #t) (M_state_while nterm (M_state_stmt (cadr nterm) state)))
       ;((eq? (car nterm) #t) (M_state_while nterm (M_state_stmt (cdr nterm))))
       (else state))))
 
@@ -225,7 +233,7 @@
 (define M_boolean_compare_expression
   (lambda (nterm state)
     (cond
-      ((feq? nterm '!) (not (M_boolean_compare_expression (cdr nterm) state))) ;issues with this one and test 18
+      ((feq? nterm '!) (not (M_boolean_compare_expression (cadr nterm) state))) ;issues with this one and test 18
       ((feq? nterm '==) (compare_value nterm state eq?))
       ((feq? nterm '!=) (compare_value nterm state (lambda (x y) (not (equal? x y)))))
       ((feq? nterm '<) (compare_value nterm state <))
@@ -275,22 +283,14 @@
   (lambda (term state)
     (cond
       ((list? term) (error_parse_failure term))
-      ((eq? term 'true) "true") ;:true" and #t previously
-      ((eq? term "false") "false") ;#f previously
-      
+      ((eq? term 'true) #t)
+      ((eq? term 'false) #f)
       ((eq? (search term state) (error_value)) (error_unassigned_variable term))
       ((not (eq? (search term state) undeclared_value)) (search term state))
-;<<<<<<< HEAD
-     ; (else term))))
-
-;(trace M_value_terminal)
-
-
-;=======
       ((number? term) term)
       ; checking if undeclared
       (else (error_undeclared_variable term)))))
-;>>>>>>> 7ec62fd932a4ecf054acf6777d9752af56c34fb8
+
 (trace M_value_plus)
 (trace M_value_minus)
 (trace M_value_times)
