@@ -1,51 +1,11 @@
 ; Brennan McFarland
 ; Lucas Alva
 
-(load "simpleParser.scm")
-
 (require racket/trace)
 
-(define error_undeclared_variable
-  (lambda (var)
-    (error "variable use before declaration: " var)))
-
-(define error_unassigned_variable
-  (lambda (var)
-    (error "variable use before assignment: " var)))
-
-(define error_unrecognized_symbol
-  (lambda (var)
-    (error "symbol not recognized: " var)))
-
-(define error_parse_failure
-  (lambda (var)
-    (error "nonterminal at the end of the parse tree" var)))
-    
-; undeclared variables have this value
-(define undeclared_value
-  (lambda ()
-    'undeclared))
-
-; unassigned variables have this value
-(define error_value
-  (lambda ()
-    'error))
-
-(define empty_list
-  (lambda ()
-    '()))
-
-(define empty_state
-  (lambda ()
-    '(()())))
-
-(define minus
-  (lambda ()
-    'minus))
-
-(define negative
-  (lambda ()
-    'neg))
+(load "simpleParser.scm")
+(load "State.rkt")
+(load "Definitions.rkt")
 
 (define interpret
   (lambda (filename)
@@ -108,59 +68,6 @@
     (function (cdr stmt) state)))
 
 (trace call_on_stmt)
-
-; given the whole state, get the list of names and values, respectively
-(define state_names
-  (lambda (state)
-    (car state)))
-
-(define state_values
-  (lambda (state)
-    (cadr state)))
-
-; perform a list operation on the state, both names and values are affected alike
-(define state_listop
-  (lambda (state function)
-    (cons (function (state_names state)) (cons (function (state_values state)) (empty-list)))))
-
-; helper function for if the state is empty
-(define state_empty?
-  (lambda (state)
-    (and (null? (car state)) (null? (cadr state)))))
-
-; adds a variable to the state with the given name and value
-(define add_to_state
-  (lambda (name value state)
-    (cond
-      ; if we didn't find a previous value, add it, and if we did, replace it
-      ((state_empty? state) (cons (list name) (list (cons value (empty_list)))))
-      ((feq? (state_names state) name) (replace_first_in_state name value state))
-      ; if we're not at the end yet and haven't found it, recur
-      (else (integrate (car (state_names state)) (car (state_values state)) (add_to_state name value (cons (cdr (car state)) (cons (cdr (car (cdr state))) '()))))))))
-
-; replaces the first in state
-(define replace_first_in_state
-  (lambda (name value state)
-    (cons (cons name (cdr (state_names state)))(list(cons value (cdr (state_values state)))))))
-
-(trace add_to_state)
-
-; check if a variable is in the state
-(define state_contains?
-  (lambda (name state)
-    (cond
-      ; we didn't find a previous value
-      ((state_empty? state) #f)
-      ((feq? (state_names state) name) #t)
-      ; if we're not at the end yet and haven't found it, recur
-      (else (state_contains? name (cons (cdr (state_names state)) (cons (cdr (state_values state)) (empty_list))))))))
-
-; (trace state_contains?)
-
-; put the new name and value into the updated state
-(define integrate
-  (lambda (name value state)
-    (cons (cons name (state_names state)) (cons (cons value (state_values state)) (empty_list)))))
 
 ; (trace integrate)
 ; racket supports short circuit evaluation, so we can write this as one conditional
@@ -257,16 +164,6 @@
         (add_to_state 'return (M_boolean_condition (search_state (stmt_var_name nterm) state) state) state))))
 
 (trace M_state_return)
-
-;returns the value of a pair in the state ex: looking for y in (y 12) returns twleve
-(define search_state
-  (lambda (x state)
-    (cond
-      ((state_empty? state) undeclared_value)
-      ((eq? x (car (state_names state))) (car (state_values state)))
-      (else (search_state x (cons (cdr (state_names state)) (list (cdr (state_values state)))))))))
-
-(trace search_state)
  
 ; evaluates a conditional as true or false
 (define M_boolean_condition
@@ -359,17 +256,6 @@
       ; checking if undeclared
       (else (error_undeclared_variable term)))))
 
-(define test
-  (lambda ()
-    (test_case 1)))
-
-(define test_case
-  (lambda (testnum)
-    (cond
-      ((> testnum 20) "all tests passed")
-      ((= testnum 11) (test_case 15))
-      ((not (eq? (interpret (string-append "test_cases/test" (string-append (number->string testnum) ".html"))) (interpret (string-append "test_cases/test" (string-append (number->string testnum) ".out"))))) (error (string-append "test " (string-append (number->string testnum) " failed"))))
-      (else (test_case (+ testnum 1))))))
 (trace M_value_plus)
 (trace M_value_minus)
 (trace M_value_times)
