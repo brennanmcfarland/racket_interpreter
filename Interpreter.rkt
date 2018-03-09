@@ -29,10 +29,10 @@
       (else value))))
 
 (define M_state_stmt-list
-  (lambda (stmt-list state return continue)
+  (lambda (stmt-list state return break)
     (if (null? stmt-list)
         state
-        (M_state_stmt-list (remaining_stmts stmt-list) (M_state_stmt (next_stmt stmt-list) state return continue) return continue))))
+        (M_state_stmt-list (remaining_stmts stmt-list) (M_state_stmt (next_stmt stmt-list) state return break) return break))))
 
 ; helper functions for getting the next and subsequent statements in a given statement list
 (define next_stmt
@@ -51,21 +51,21 @@
 ; a helper function: given the "operative" (the first) element in the stmt's list, call a function
 ; with the parameters, eg given (= x 1) call the appropriate function with (x 1)
 (define call_on_stmt
-  (lambda (function stmt state return continue)
-    (function (cdr stmt) state return continue)))
+  (lambda (function stmt state return break)
+    (function (cdr stmt) state return break)))
 
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
-  (lambda (nterm state return continue)
+  (lambda (nterm state return break)
     (cond
-      ((nterm_oftype? nterm 'if) (call_on_stmt M_state_if nterm state return continue))
-      ((nterm_oftype? nterm 'while) (call_on_stmt M_state_while nterm state return continue))
-      ((nterm_oftype? nterm 'var) (call_on_stmt M_state_declare nterm state return continue))
-      ((nterm_oftype? nterm '=) (call_on_stmt M_state_assign nterm state return continue))
+      ((nterm_oftype? nterm 'if) (call_on_stmt M_state_if nterm state return break))
+      ((nterm_oftype? nterm 'while) (call_on_stmt M_state_while nterm state return break))
+      ((nterm_oftype? nterm 'var) (call_on_stmt M_state_declare nterm state return break))
+      ((nterm_oftype? nterm '=) (call_on_stmt M_state_assign nterm state return break))
       ; return is an M_value function even though called from an M_state because the continuation breaks normal control flow
-      ((nterm_oftype? nterm 'return) (call_on_stmt M_value_return nterm state return continue)) ; if we're returning x, it passes the name and not value to M_value_return
-      ((nterm_oftype? nterm 'continue) (call_on_stmt M_value_continue nterm state return continue))
-      ((nterm_oftype? nterm 'begin) (call_on_stmt M_state_block nterm state return continue)) 
+      ((nterm_oftype? nterm 'return) (call_on_stmt M_value_return nterm state return break)) ; if we're returning x, it passes the name and not value to M_value_return
+      ((nterm_oftype? nterm 'break) (call_on_stmt M_value_break nterm state return break))
+      ((nterm_oftype? nterm 'begin) (call_on_stmt M_state_block nterm state return break)) 
       (else (error_unrecognized_symbol (next_stmt nterm))))))
 
 ; determine if the nonterminal is of a given type
@@ -82,16 +82,14 @@
 
 ; a scoping block, ie, brackets
 (define M_state_block
-  (lambda (nterm state return continue)
-    (call/cc
-     (lambda (continue)
-       (pop_frame (M_state_stmt-list nterm (push_frame state) return continue))))))
+  (lambda (nterm state return break)
+       (pop_frame (M_state_stmt-list nterm (push_frame state) return break))))
 
 (define M_state_if
-  (lambda (nterm state return continue)
+  (lambda (nterm state return break)
     (cond
-      ((eq? (M_boolean_condition (condition nterm) state) #t) (M_state_stmt (then_stmt nterm) state return continue))
-      ((has_else? nterm) (M_state_stmt (else_stmt nterm) state return continue))
+      ((eq? (M_boolean_condition (condition nterm) state) #t) (M_state_stmt (then_stmt nterm) state return break))
+      ((has_else? nterm) (M_state_stmt (else_stmt nterm) state return break))
       (else state))))
 
 ; given a conditional, extract the condition
@@ -110,10 +108,12 @@
     (caddr conditional)))
 
 (define M_state_while
-  (lambda (nterm state return continue)
-    (cond
-      ((eq? (M_boolean_condition (condition nterm) state) #t) (M_state_while nterm (M_state_stmt (then_stmt nterm) state return continue) return continue))
-      (else state))))
+  (lambda (nterm state return break)
+    (call/cc
+     (lambda (break)
+       (cond
+         ((eq? (M_boolean_condition (condition nterm) state) #t) (M_state_while nterm (M_state_stmt (then_stmt nterm) state return break) return break))
+         (else state))))))
 
 ; gets if the declare statement also assigns a value
 (define declare_has_assign?
@@ -121,7 +121,7 @@
     (eq? (len nterm) 2)))
 
 (define M_state_declare
-  (lambda (nterm state return continue)
+  (lambda (nterm state return break)
     (if (declare_has_assign? nterm)
         (update_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state) ;add the variable to the state and assign it
         (update_state (stmt_var_name nterm) (error_value) state)))) ;otherwise just assign it error
@@ -137,19 +137,19 @@
     (cadr nterm)))
 
 (define M_state_assign
-  (lambda (nterm state return continue)
+  (lambda (nterm state return break)
     (if (state_contains? (stmt_var_name nterm) state)
         (update_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state)
         ; checking for undeclaration
         (error_undeclared_variable (stmt_var_name nterm)))))
 
 (define M_value_return
-  (lambda (nterm state return continue)
+  (lambda (nterm state return break)
     (return (M_boolean_condition (stmt_var_name nterm) state))))
 
-(define M_value_continue
-  (lambda (nterm state return continue)
-    (continue state)))
+(define M_value_break
+  (lambda (nterm state return break)
+    (break state)))
 
 ; evaluates a conditional as true or false
 (define M_boolean_condition
