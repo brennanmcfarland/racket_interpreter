@@ -2,7 +2,7 @@
 ; Lucas Alva
 
 (require racket/trace)
-; (load "Definitions.rkt") ; TODO: remove to avoid cyclic dependencies
+(load "Definitions.rkt") ; TODO: remove to avoid cyclic dependencies
 
 ; given the current stack frame, get the list of in-frame names and values, respectively
 (define frame_names
@@ -42,12 +42,15 @@
 ; returns the value of a pair in the current stack frame
 (define search_state
   (lambda (x state)
-    (search_frame x (current_frame state))))
+    (cond
+      ((state_empty? state) (undeclared_value))
+      ((frame_contains? x (current_frame state)) (search_frame x (current_frame state)))
+      (else (search_state x (other_frames state))))))
 
 (define search_frame
   (lambda (x frame)
     (cond
-      ((frame_empty? frame) undeclared_value)
+      ((frame_empty? frame) (undeclared_value))
       ((eq? x (next_frame_name frame)) (next_frame_value frame))
       (else (search_frame x (cons (remaining_frame_names frame) (list (remaining_frame_values frame))))))))
 
@@ -59,7 +62,7 @@
 ; helper function for if the state is empty
 (define state_empty?
   (lambda (state)
-    (and (null? (other_frames state)) (frame_empty? (current_frame state)))))
+    (or (null? state) (and (null? (other_frames state)) (frame_empty? (current_frame state)))))) ; TODO: remove this, we will push a stack frame every time instead
   
 ; helper function for if the in-frame state is empty
 (define frame_empty?

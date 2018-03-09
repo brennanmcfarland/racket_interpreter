@@ -132,7 +132,7 @@
 
 (define M_state_return
   (lambda (nterm state)
-    (if (equal? (search_state nterm state) undeclared_value)
+    (if (equal? (search_state nterm state) (undeclared_value))
         (add_to_state 'return (M_boolean_condition (stmt_var_name nterm) state) state)
         (add_to_state 'return (M_boolean_condition (search_state (stmt_var_name nterm) state) state) state))))
  
@@ -221,9 +221,9 @@
       ((list? term) (error_parse_failure term))
       ((eq? term 'true) #t)
       ((eq? term 'false) #f)
+      ((number? term) term)
       ((eq? (search_state term state) (error_value)) (error_unassigned_variable term))
       ((not (eq? (search_state term state) undeclared_value)) (search_state term state))
-      ((number? term) term)
       ; checking if undeclared
       (else (error_undeclared_variable term)))))
 
