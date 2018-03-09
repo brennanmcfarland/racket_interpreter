@@ -3,11 +3,11 @@
 
 (require racket/trace)
 
-; other files need to be loaded only once, so we may as well do so here
-(load "simpleParser.scm")
+; other files need to be loaded only once, so we may as well do so here (order matters, first loads first)
+(load "Definitions.rkt")
 (load "State.rkt")
 (load "Test.rkt")
-(load "Definitions.rkt")
+(load "simpleParser.scm")
 
 (define interpret
   (lambda (filename)
@@ -25,15 +25,11 @@
       ((eq? value #f) 'false)
       (else value))))
 
-(trace evaluate_tree)
-
 (define M_state_stmt-list
   (lambda (stmt-list state)
     (if (null? stmt-list)
         state
         (M_state_stmt-list (remaining_stmts stmt-list) (M_state_stmt (next_stmt stmt-list) state)))))
-
-(trace M_state_stmt-list)
 
 ; helper functions for getting the next and subsequent statements in a given statement list
 (define next_stmt
@@ -55,9 +51,6 @@
   (lambda (function stmt state)
     (function (cdr stmt) state)))
 
-(trace call_on_stmt)
-
-; (trace integrate)
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
   (lambda (nterm state)
@@ -76,8 +69,6 @@
       ((and (feq? nterm '-) (> (len nterm) 2)) (eq? type (minus)))
       ((feq? nterm '-) (eq? type (negative)))
       (else (feq? nterm type)))))
-
-(trace M_state_stmt)
 
 (define has_else?
   (lambda (nterm)
@@ -116,8 +107,6 @@
   (lambda (nterm)
     (eq? (len nterm) 2)))
 
-(trace declare_has_assign?)
-
 (define M_state_declare
   (lambda (nterm state)
     (if (declare_has_assign? nterm)
@@ -134,8 +123,6 @@
   (lambda (nterm)
     (cadr nterm)))
 
-(trace M_state_declare)
-
 (define M_state_assign
   (lambda (nterm state)
     (if (state_contains? (stmt_var_name nterm) state)
@@ -143,15 +130,11 @@
         ; checking for undeclaration
         (error_undeclared_variable (stmt_var_name nterm)))))
 
-(trace M_state_assign)
-
 (define M_state_return
   (lambda (nterm state)
     (if (equal? (search_state nterm state) undeclared_value)
         (add_to_state 'return (M_boolean_condition (stmt_var_name nterm) state) state)
         (add_to_state 'return (M_boolean_condition (search_state (stmt_var_name nterm) state) state) state))))
-
-(trace M_state_return)
  
 ; evaluates a conditional as true or false
 (define M_boolean_condition
@@ -244,15 +227,24 @@
       ; checking if undeclared
       (else (error_undeclared_variable term)))))
 
-(trace M_value_plus)
-(trace M_value_minus)
-(trace M_value_times)
-(trace M_value_div)
-(trace M_value_mod)
-(trace M_value_neg)
-(trace M_boolean_condition)
-(trace  M_boolean_ored_expression)
-(trace  M_boolean_anded_expression)
-(trace compare_value)
-(trace  M_boolean_compare_expression)
-(trace M_value_term)
+;(trace evaluate_tree)
+;(trace M_state_stmt-list)
+;(trace M_state_stmt)
+;(trace call_on_stmt)
+;(trace declare_has_assign?)
+;(tracedbg integrate)
+;(trace M_state_declare)
+;(trace M_state_assign)
+;(trace M_state_return)
+;(trace M_value_plus)
+;(trace M_value_minus)
+;(trace M_value_times)
+;(trace M_value_div)
+;(trace M_value_mod)
+;(trace M_value_neg)
+;(trace M_boolean_condition)
+;(trace  M_boolean_ored_expression)
+;(trace  M_boolean_anded_expression)
+;(trace compare_value)
+;(trace  M_boolean_compare_expression)
+;(trace M_value_term)

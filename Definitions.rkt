@@ -35,7 +35,7 @@
 
 (define empty_state
   (lambda ()
-    '(()())))
+    '((()()))))
 
 (define minus
   (lambda ()
