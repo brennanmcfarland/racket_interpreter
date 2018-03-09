@@ -59,7 +59,8 @@
       ((nterm_oftype? nterm 'while) (call_on_stmt M_state_while nterm state))
       ((nterm_oftype? nterm 'var) (call_on_stmt M_state_declare nterm state))
       ((nterm_oftype? nterm '=) (call_on_stmt M_state_assign nterm state))
-      ((nterm_oftype? nterm 'return) (call_on_stmt M_state_return nterm state)) ; if we're returning x, it passes the name and not value to M_state_return 
+      ((nterm_oftype? nterm 'return) (call_on_stmt M_state_return nterm state)) ; if we're returning x, it passes the name and not value to M_state_return
+      ((nterm_oftype? nterm 'begin) (call_on_stmt M_state_block nterm state)) 
       (else (error_unrecognized_symbol (next_stmt nterm))))))
 
 ; determine if the nonterminal is of a given type
@@ -73,6 +74,11 @@
 (define has_else?
   (lambda (nterm)
     (eq? (len nterm) 3)))
+
+; a scoping block, ie, brackets
+(define M_state_block
+  (lambda (nterm state)
+    (pop_frame (M_state_stmt-list nterm (push_frame state)))))
 
 (define M_state_if
   (lambda (nterm state)
@@ -110,8 +116,8 @@
 (define M_state_declare
   (lambda (nterm state)
     (if (declare_has_assign? nterm)
-        (add_to_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state) ;add the variable to the state and assign it
-        (add_to_state (stmt_var_name nterm) (error_value) state)))) ;otherwise just assign it error
+        (update_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state) ;add the variable to the state and assign it
+        (update_state (stmt_var_name nterm) (error_value) state)))) ;otherwise just assign it error
 
 ; given a variable-modifying statement, extract the variable name
 (define stmt_var_name
@@ -126,15 +132,15 @@
 (define M_state_assign
   (lambda (nterm state)
     (if (state_contains? (stmt_var_name nterm) state)
-        (add_to_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state)
+        (update_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state)
         ; checking for undeclaration
         (error_undeclared_variable (stmt_var_name nterm)))))
 
 (define M_state_return
   (lambda (nterm state)
     (if (equal? (search_state nterm state) (undeclared_value))
-        (add_to_state 'return (M_boolean_condition (stmt_var_name nterm) state) state)
-        (add_to_state 'return (M_boolean_condition (search_state (stmt_var_name nterm) state) state) state))))
+        (update_state 'return (M_boolean_condition (stmt_var_name nterm) state) state)
+        (update_state 'return (M_boolean_condition (search_state (stmt_var_name nterm) state) state) state))))
  
 ; evaluates a conditional as true or false
 (define M_boolean_condition
@@ -227,24 +233,23 @@
       ; checking if undeclared
       (else (error_undeclared_variable term)))))
 
-;(trace evaluate_tree)
-;(trace M_state_stmt-list)
-;(trace M_state_stmt)
-;(trace call_on_stmt)
-;(trace declare_has_assign?)
-;(tracedbg integrate)
-;(trace M_state_declare)
-;(trace M_state_assign)
-;(trace M_state_return)
-;(trace M_value_plus)
-;(trace M_value_minus)
-;(trace M_value_times)
-;(trace M_value_div)
-;(trace M_value_mod)
-;(trace M_value_neg)
-;(trace M_boolean_condition)
-;(trace  M_boolean_ored_expression)
-;(trace  M_boolean_anded_expression)
-;(trace compare_value)
-;(trace  M_boolean_compare_expression)
-;(trace M_value_term)
+(trace evaluate_tree)
+(trace M_state_stmt-list)
+(trace M_state_stmt)
+(trace call_on_stmt)
+(trace declare_has_assign?)
+(trace M_state_declare)
+(trace M_state_assign)
+(trace M_state_return)
+(trace M_value_plus)
+(trace M_value_minus)
+(trace M_value_times)
+(trace M_value_div)
+(trace M_value_mod)
+(trace M_value_neg)
+(trace M_boolean_condition)
+(trace  M_boolean_ored_expression)
+(trace  M_boolean_anded_expression)
+(trace compare_value)
+(trace  M_boolean_compare_expression)
+(trace M_value_term)

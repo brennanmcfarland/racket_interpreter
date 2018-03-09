@@ -2,7 +2,7 @@
 ; Lucas Alva
 
 (require racket/trace)
-(load "Definitions.rkt") ; TODO: remove to avoid cyclic dependencies
+; (load "Definitions.rkt") ; TODO: remove to avoid cyclic dependencies
 
 ; init_state has two frames because the outermost frame is always empty, which avoids extra null checks when recurring over the state
 (define init_state
@@ -74,19 +74,34 @@
   (lambda (frame)
     (and (null? (frame_names frame)) (null? (frame_values frame)))))
 
+; replaces a variable if it exists, adds it if not
+(define update_state
+  (lambda (name value state)
+    (if (state_contains? name state)
+        (replace_in_state name value state)
+        (add_to_state name value state))))
+
+; replaces an existing variable in the innermost frame of the state
+(define replace_in_state
+  (lambda (name value state)
+    (cond
+      ((state_empty? state) (error "internal error: attempt to replace undeclared variable"))
+      ((frame_contains? name (current_frame state)) (cons (update_frame name value (current_frame state)) (other_frames state)))
+      (else (cons (current_frame state) (replace_in_state name value (other_frames state)))))))
+
 ; adds a variable to the in-frame state with the given name and value
 (define add_to_state
   (lambda (name value state)
-    (cons (add_to_frame name value (current_frame state)) (other_frames state))))
+    (cons (update_frame name value (current_frame state)) (other_frames state))))
 
-(define add_to_frame
+(define update_frame
   (lambda (name value frame)
     (cond
       ; if we didn't find a previous value, add it, and if we did, replace it
       ((frame_empty? frame) (cons (list name) (list (cons value (empty_list)))))
       ((feq? (frame_names frame) name) (replace_first_in_frame name value frame))
       ; if we're not at the end yet and haven't found it, recur
-      (else (integrate_in_frame (next_frame_name frame) (next_frame_value frame) (add_to_frame name value (cons (remaining_frame_names frame) (cons (remaining_frame_values frame) '()))))))))
+      (else (integrate_in_frame (next_frame_name frame) (next_frame_value frame) (update_frame name value (cons (remaining_frame_names frame) (cons (remaining_frame_values frame) '()))))))))
 
 ; replaces the first in frame
 (define replace_first_in_frame
@@ -127,5 +142,5 @@
     (cdr state)))
   
 ;(trace search_frame)
-;(trace add_to_frame)
+;(trace update_frame)
 ;(trace frame_contains?)
