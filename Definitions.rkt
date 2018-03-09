@@ -37,6 +37,10 @@
   (lambda ()
     '((()()))))
 
+(define empty_frame
+  (lambda ()
+    '(()())))
+
 (define minus
   (lambda ()
     'minus))

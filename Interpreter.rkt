@@ -15,7 +15,7 @@
 
 (define evaluate_tree
   (lambda (tree)
-    (printval (search_state 'return (M_state_stmt-list tree (empty_state))))))
+    (printval (search_state 'return (M_state_stmt-list tree (init_state))))))
 
 ; converts a value from internal representation to what it is displayed as to the user
 (define printval

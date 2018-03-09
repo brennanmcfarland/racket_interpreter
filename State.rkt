@@ -4,6 +4,11 @@
 (require racket/trace)
 (load "Definitions.rkt") ; TODO: remove to avoid cyclic dependencies
 
+; init_state has two frames because the outermost frame is always empty, which avoids extra null checks when recurring over the state
+(define init_state
+  (lambda ()
+    (push_frame (empty_state))))
+
 ; given the current stack frame, get the list of in-frame names and values, respectively
 (define frame_names
   (lambda (frame)
@@ -62,7 +67,7 @@
 ; helper function for if the state is empty
 (define state_empty?
   (lambda (state)
-    (or (null? state) (and (null? (other_frames state)) (frame_empty? (current_frame state)))))) ; TODO: remove this, we will push a stack frame every time instead
+    (and (null? (other_frames state)) (frame_empty? (current_frame state)))))
   
 ; helper function for if the in-frame state is empty
 (define frame_empty?
@@ -111,6 +116,16 @@
   (lambda (name value frame)
     (cons (cons name (frame_names frame)) (cons (cons value (frame_values frame)) (empty_list)))))
 
+; push a new stack frame onto the state
+(define push_frame
+  (lambda (state)
+    (cons (empty_frame) state)))
+
+; pop the current stack frame from the state
+(define pop_frame
+  (lambda (state)
+    (cdr state)))
+  
 ;(trace search_frame)
 ;(trace add_to_frame)
 ;(trace frame_contains?)
