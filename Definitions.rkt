@@ -44,3 +44,17 @@
 (define negative
   (lambda ()
     'neg))
+
+; a helper function: given a list and S-expression, determine if the first element in the list equals
+; the S-expression
+(define feq?
+  (lambda (lis s)
+    (if (and (list? lis) (not(null? lis)))
+         (eq? (car lis) s)
+         #f)))
+
+(define len
+  (lambda (lis)
+	(if (null? lis)
+            0
+            (+ 1 (len (cdr lis))))))

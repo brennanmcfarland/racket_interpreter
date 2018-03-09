@@ -3,8 +3,10 @@
 
 (require racket/trace)
 
+; other files need to be loaded only once, so we may as well do so here
 (load "simpleParser.scm")
 (load "State.rkt")
+(load "Test.rkt")
 (load "Definitions.rkt")
 
 (define interpret
@@ -41,20 +43,6 @@
 (define remaining_stmts
   (lambda (stmt-list)
     (cdr stmt-list)))
-
-; a helper function: given a list and S-expression, determine if the first element in the list equals
-; the S-expression
-(define feq?
-  (lambda (lis s)
-    (if (and (list? lis) (not(null? lis)))
-         (eq? (car lis) s)
-         #f)))
-
-(define len
-  (lambda (lis)
-	(if (null? lis)
-            0
-            (+ 1 (len (cdr lis))))))
 
 ; a helper function: given a nonterminal, determine if it is a <type>
 (define type?

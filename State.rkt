@@ -3,8 +3,6 @@
 
 (require racket/trace)
 
-(load "Definitions.rkt")
-
 ; given the whole state, get the list of names and values, respectively
 (define state_names
   (lambda (state)

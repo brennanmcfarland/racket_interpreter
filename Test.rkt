@@ -3,9 +3,6 @@
 
 (require racket/trace)
 
-(load "Interpreter.rkt")
-(load "Definitions.rkt")
-
 ; run all tests
 (define test
   (lambda ()
