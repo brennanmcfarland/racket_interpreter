@@ -113,7 +113,7 @@
     (caddr conditional)))
 
 (define M_state_while
-  (lambda (nterm state return break continue)
+  (lambda (nterm state return break continue throw)
     (call/cc
      (lambda (break)
        (cond
@@ -121,7 +121,7 @@
              (M_state_while nterm 
                             (call/cc
                              (lambda (continue)
-                               (M_state_stmt (then_stmt nterm) state return break continue))) return break continue))
+                               (M_state_stmt (then_stmt nterm) state return break continue throw))) return break continue throw))
          (else state))))))
 
 (define M_state_try
@@ -177,6 +177,8 @@
 (define M_value_throw
   (lambda (nterm state return break continue throw)
     (throw state)))
+
+(trace M_value_throw)
 
 ; evaluates a conditional as true or false
 
