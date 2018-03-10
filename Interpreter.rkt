@@ -11,6 +11,10 @@
 (load "Test.rkt")
 (load "simpleParser.scm")
 
+(define throw
+  (lambda (x state)
+    (M_boolean_compare_expression x state)))
+
 (define interpret
   (lambda (filename)
     (evaluate_tree (parser filename))))
@@ -113,7 +117,7 @@
     (caddr conditional)))
 
 (define M_state_while
-  (lambda (nterm state return break continue)
+  (lambda (nterm state return break continue throw)
     (call/cc
      (lambda (break)
        (cond
@@ -121,18 +125,28 @@
              (M_state_while nterm 
                             (call/cc
                              (lambda (continue)
-                               (M_state_stmt (then_stmt nterm) state return break continue))) return break continue))
+                               (M_state_stmt (then_stmt nterm) state return break continue throw))) return break continue throw))
          (else state))))))
 
 (define M_state_try
   (lambda (nterm state return break continue throw)
     (call/cc
      (lambda (throw)
-       (M_state_stmt-list (try_body_contents nterm) state return break continue throw)))))
+       (if (has_finally? nterm)
+           (M_state_stmt-list (try_body_finally nterm) (M_state_stmt-list (try_body_contents nterm) state return break continue throw) return break continue throw)
+           (M_state_stmt-list (try_body_contents nterm) state return break continue throw))))))
 
 (define try_body_contents
   (lambda (body)
     (car body)))
+
+(define try_body_finally
+  (lambda (body)
+    (car (cdaddr body))))
+
+(define has_finally?
+  (lambda (try)
+    (eq? (len try) 3)))
     
 ; gets if the declare statement also assigns a value
 (define declare_has_assign?
@@ -270,23 +284,23 @@
       ; checking if undeclared
       (else (error_undeclared_variable term)))))
 
-(trace evaluate_tree)
-(trace M_state_stmt-list)
-(trace M_state_stmt)
-(trace call_on_stmt)
-(trace declare_has_assign?)
-(trace M_state_declare)
-(trace M_state_assign)
-(trace M_value_return)
-(trace M_value_plus)
-(trace M_value_minus)
-(trace M_value_times)
-(trace M_value_div)
-(trace M_value_mod)
-(trace M_value_neg)
-(trace M_boolean_condition)
-(trace  M_boolean_ored_expression)
-(trace  M_boolean_anded_expression)
-(trace compare_value)
-(trace  M_boolean_compare_expression)
-(trace M_value_term)
+;(trace evaluate_tree)
+;(trace M_state_stmt-list)
+;(trace M_state_stmt)
+;(trace call_on_stmt)
+;(trace declare_has_assign?)
+;(trace M_state_declare)
+;(trace M_state_assign)
+;(trace M_value_return)
+;(trace M_value_plus)
+;(trace M_value_minus)
+;(trace M_value_times)
+;(trace M_value_div)
+;(trace M_value_mod)
+;(trace M_value_neg)
+;(trace M_boolean_condition)
+;(trace  M_boolean_ored_expression)
+;(trace  M_boolean_anded_expression)
+;(trace compare_value)
+;(trace  M_boolean_compare_expression)
+;(trace M_value_term)
