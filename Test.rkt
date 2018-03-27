@@ -2,6 +2,7 @@
 ; Lucas Alva
 
 (require racket/trace)
+(load "interpreter2-callcc-no-boxes.scm")
 
 ; run all tests
 (define test
