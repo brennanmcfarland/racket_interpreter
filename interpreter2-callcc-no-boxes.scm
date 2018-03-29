@@ -42,7 +42,11 @@
       ((eq? 'begin (statement-type statement)) (interpret-block statement environment return break continue throw))
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
+      ((eq? 'function (statement-type statement)) (interpret-function statement environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
+
+(define interpret-function
+  (lambda (statement environment return break continue throw)
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
