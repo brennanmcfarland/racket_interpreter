@@ -170,11 +170,29 @@
 ; TODO: move interpret to the right place, if it needs to be here
 (define interpret-function
   (lambda (statement environment return break continue throw)
-    (myerror "IMPLEMENT THIS")))
+    ( ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
+     ; it's probably related to actualize-parameters
+     (lookup (statement-type statement) environment) ; get the closure
+    )
+    ))
 
+; TODO: what about when the function changes global state?
 (define eval-function
   (lambda (statement environment return break continue throw)
-    (myerror "IMPLEMENT THIS")))
+    (interpret-function statement environment return break continue throw)))
+
+; TODO: move to helper section
+; given the arguments and the formal parameters, add the actual parameters to the environment
+(define actualize-parameters
+  (lambda (args params environment)
+    (if (not (null? args))
+        (insert (nextof args) (nextof params) (actualize-parameters (remaining args) (remaining params) environment))
+        environment)))
+
+; TODO: move to helper section
+(define get-actual-parameters cdr)
+(define nextof car)
+(define remaining cdr)
 
 ; Evaluates all possible boolean and arithmetic expressions, including constants and variables.
 (define eval-expression
@@ -183,8 +201,17 @@
       ((number? expr) expr)
       ((eq? expr 'true) #t)
       ((eq? expr 'false) #f)
+      ((valid-function? expr environment) (eval-function expr environment))
       ((not (list? expr)) (lookup expr environment))
       (else (eval-operator expr environment)))))
+
+; TODO: move this to helper section
+; determine if the S-expression is a function in the environment
+(define valid-function?
+  (lambda (expr environment)
+    (if (exists? (statement-type expr) environment)
+        #t
+        #f)))
 
 ; Evaluate a binary (or unary) operator.  Although this is not dealing with side effects, I have the routine evaluate the left operand first and then
 ; pass the result to eval-binary-op2 to evaluate the right operand.  This forces the operands to be evaluated in the proper order in case you choose
