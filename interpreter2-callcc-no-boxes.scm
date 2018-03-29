@@ -1,7 +1,9 @@
 ; If you are using racket instead of scheme, uncomment these two lines, comment the (load "simpleParser.scm") and uncomment the (require "simpleParser.scm")
 ; #lang racket
 ; (require "simpleParser.scm")
-(load "simpleParser.scm")
+(load "functionParser.scm")
+(load "state-interpreter2-callcc-no-boxes.scm")
+(load "bindings.scm")
 
 
 ; An interpreter for the simple language that uses call/cc for the continuations.  Does not handle side effects.
@@ -17,10 +19,23 @@
     (scheme->language
      (call/cc
       (lambda (return)
-        (interpret-statement-list (parser file) (newenvironment) return
+        (run-program (parser file) (newenvironment) return
                                   (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
                                   (lambda (v env) (myerror "Uncaught exception thrown"))))))))
 
+; perform bindings and execute main() in the interpreted program
+(define run-program
+  (lambda (program environment return break continue throw)
+    (eval-function (lookup main (create-bindings program return break continue throw))
+                        (create-bindings program return break continue throw) return break continue throw)))
+                              
+; for the "outer layer" of the interpreter
+; handles binding of functions and global variables
+; returns the environment with bindings
+(define create-bindings
+  (lambda (program return break continue throw)
+    (interpret-statement-list (program (newenvironment) return break continue throw)))) 
+     
 ; interprets a list of statements.  The environment from each statement is used for the next ones.
 (define interpret-statement-list
   (lambda (statement-list environment return break continue throw)
@@ -42,11 +57,15 @@
       ((eq? 'begin (statement-type statement)) (interpret-block statement environment return break continue throw))
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
-      ((eq? 'function (statement-type statement)) (interpret-function statement environment return break continue throw))
+      ((eq? 'function (statement-type statement)) (bind-function statement environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
 
-(define interpret-function
+; bind a function name to its closure
+; we bind the function as if it were any other variable, with its closure as the value
+(define bind-function
   (lambda (statement environment return break continue throw)
+    (insert (get-declare-var statement) (get-declare-closure statement) environment)))
+    
 
 ; Calls the return continuation with the given expression value
 (define interpret-return
@@ -147,6 +166,16 @@
       ((not (eq? (statement-type finally-statement) 'finally)) (myerror "Incorrectly formatted finally block"))
       (else (cons 'begin (cadr finally-statement))))))
 
+; TODO: evaluate/update state from a function call
+; TODO: move interpret to the right place, if it needs to be here
+(define interpret-function
+  (lambda (statement environment return break continue throw)
+    (myerror "IMPLEMENT THIS")))
+
+(define eval-function
+  (lambda (statement environment return break continue throw)
+    (myerror "IMPLEMENT THIS")))
+
 ; Evaluates all possible boolean and arithmetic expressions, including constants and variables.
 (define eval-expression
   (lambda (expr environment)
@@ -217,6 +246,8 @@
 (define get-expr operand1)
 (define get-declare-var operand1)
 (define get-declare-value operand2)
+; TODO: get-declare-closure still needs to include the last part of the closure, where it creates the function environment from current
+(define get-declare-closure (cons operand2 operand3))
 (define exists-declare-value? exists-operand2?)
 (define get-assign-lhs operand1)
 (define get-assign-rhs operand2)
@@ -232,142 +263,6 @@
 (define catch-var
   (lambda (catch-statement)
     (car (operand1 catch-statement))))
-
-
-;------------------------
-; Environment/State Functions
-;------------------------
-
-; create a new empty environment
-(define newenvironment
-  (lambda ()
-    (list (newframe))))
-
-; create an empty frame: a frame is two lists, the first are the variables and the second is the "store" of values
-(define newframe
-  (lambda ()
-    '(() ())))
-
-; add a frame onto the top of the environment
-(define push-frame
-  (lambda (environment)
-    (cons (newframe) environment)))
-
-; remove a frame from the environment
-(define pop-frame
-  (lambda (environment)
-    (cdr environment)))
-
-; some abstractions
-(define topframe car)
-(define remainingframes cdr)
-
-; does a variable exist in the environment?
-(define exists?
-  (lambda (var environment)
-    (cond
-      ((null? environment) #f)
-      ((exists-in-list? var (variables (topframe environment))) #t)
-      (else (exists? var (remainingframes environment))))))
-
-; does a variable exist in a list?
-(define exists-in-list?
-  (lambda (var l)
-    (cond
-      ((null? l) #f)
-      ((eq? var (car l)) #t)
-      (else (exists-in-list? var (cdr l))))))
-
-; Looks up a value in the environment.  If the value is a boolean, it converts our languages boolean type to a Scheme boolean type
-(define lookup
-  (lambda (var environment)
-    (lookup-variable var environment)))
-  
-; A helper function that does the lookup.  Returns an error if the variable does not have a legal value
-(define lookup-variable
-  (lambda (var environment)
-    (let ((value (lookup-in-env var environment)))
-      (if (eq? 'novalue value)
-          (myerror "error: variable without an assigned value:" var)
-          value))))
-
-; Return the value bound to a variable in the environment
-(define lookup-in-env
-  (lambda (var environment)
-    (cond
-      ((null? environment) (myerror "error: undefined variable" var))
-      ((exists-in-list? var (variables (topframe environment))) (lookup-in-frame var (topframe environment)))
-      (else (lookup-in-env var (cdr environment))))))
-
-; Return the value bound to a variable in the frame
-(define lookup-in-frame
-  (lambda (var frame)
-    (cond
-      ((not (exists-in-list? var (variables frame))) (myerror "error: undefined variable" var))
-      (else (language->scheme (get-value (indexof var (variables frame)) (store frame)))))))
-
-; Get the location of a name in a list of names
-(define indexof
-  (lambda (var l)
-    (cond
-      ((null? l) 0)  ; should not happen
-      ((eq? var (car l)) 0)
-      (else (+ 1 (indexof var (cdr l)))))))
-
-; Get the value stored at a given index in the list
-(define get-value
-  (lambda (n l)
-    (cond
-      ((zero? n) (car l))
-      (else (get-value (- n 1) (cdr l))))))
-
-; Adds a new variable/value binding pair into the environment.  Gives an error if the variable already exists in this frame.
-(define insert
-  (lambda (var val environment)
-    (if (exists-in-list? var (variables (car environment)))
-        (myerror "error: variable is being re-declared:" var)
-        (cons (add-to-frame var val (car environment)) (cdr environment)))))
-
-; Changes the binding of a variable to a new value in the environment.  Gives an error if the variable does not exist.
-(define update
-  (lambda (var val environment)
-    (if (exists? var environment)
-        (update-existing var val environment)
-        (myerror "error: variable used but not defined:" var))))
-
-; Add a new variable/value pair to the frame.
-(define add-to-frame
-  (lambda (var val frame)
-    (list (cons var (variables frame)) (cons (scheme->language val) (store frame)))))
-
-; Changes the binding of a variable in the environment to a new value
-(define update-existing
-  (lambda (var val environment)
-    (if (exists-in-list? var (variables (car environment)))
-        (cons (update-in-frame var val (topframe environment)) (remainingframes environment))
-        (cons (topframe environment) (update-existing var val (remainingframes environment))))))
-
-; Changes the binding of a variable in the frame to a new value.
-(define update-in-frame
-  (lambda (var val frame)
-    (list (variables frame) (update-in-frame-store var val (variables frame) (store frame)))))
-
-; Changes a variable binding by placing the new value in the appropriate place in the store
-(define update-in-frame-store
-  (lambda (var val varlist vallist)
-    (cond
-      ((eq? var (car varlist)) (cons (scheme->language val) (cdr vallist)))
-      (else (cons (car vallist) (update-in-frame-store var val (cdr varlist) (cdr vallist)))))))
-
-; Returns the list of variables from a frame
-(define variables
-  (lambda (frame)
-    (car frame)))
-
-; Returns the store from a frame
-(define store
-  (lambda (frame)
-    (cadr frame)))
 
 ; Functions to convert the Scheme #t and #f to our languages true and false, and back.
 
