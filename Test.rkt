@@ -2,6 +2,7 @@
 ; Lucas Alva
 
 (require racket/trace)
+(load "interpreter2-callcc-no-boxes.scm")
 
 ; run all tests
 (define test
@@ -11,7 +12,7 @@
 ; run all tests
 (define test_all
   (lambda ()
-    (test_case 1 40)))
+    (test_case 1 60)))
 
 ; run up to max numbered tests
 (define test_first

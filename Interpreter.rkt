@@ -24,7 +24,7 @@
     (printval
      (call/cc
       (lambda (return)
-        (M_state_stmt-list tree (init_state) return (lambda () ()) (lambda () ()) (lambda () ()))))))) ; the lambdas are to be overwritten
+        (M_state_stmt-list tree (init_state) return (lambda () ()) (lambda () ()) (lambda () ()) (lambda () ()))))))) ; the lambdas are to be overwritten
 
 ; converts a value from internal representation to what it is displayed as to the user
 (define printval
@@ -35,10 +35,10 @@
       (else value))))
 
 (define M_state_stmt-list
-  (lambda (stmt-list state return break continue throw)
+  (lambda (stmt-list state return break continue throw ctch)
     (if (null? stmt-list)
         state
-        (M_state_stmt-list (remaining_stmts stmt-list) (M_state_stmt (next_stmt stmt-list) state return break continue throw) return break continue throw))))
+        (M_state_stmt-list (remaining_stmts stmt-list) (M_state_stmt (next_stmt stmt-list) state return break continue throw ctch) return break continue throw ctch))))
 
 ; helper functions for getting the next and subsequent statements in a given statement list
 (define next_stmt
@@ -57,24 +57,24 @@
 ; a helper function: given the "operative" (the first) element in the stmt's list, call a function
 ; with the parameters, eg given (= x 1) call the appropriate function with (x 1)
 (define call_on_stmt
-  (lambda (function stmt state return break continue throw)
-    (function (cdr stmt) state return break continue throw)))
+  (lambda (function stmt state return break continue throw ctch)
+    (function (cdr stmt) state return break continue throw ctch)))
 
 ; racket supports short circuit evaluation, so we can write this as one conditional
 (define M_state_stmt
-  (lambda (nterm state return break continue throw)
+  (lambda (nterm state return break continue throw ctch)
     (cond
-      ((nterm_oftype? nterm 'if) (call_on_stmt M_state_if nterm state return break continue throw))
-      ((nterm_oftype? nterm 'while) (call_on_stmt M_state_while nterm state return break continue throw))
-      ((nterm_oftype? nterm 'var) (call_on_stmt M_state_declare nterm state return break continue throw))
-      ((nterm_oftype? nterm '=) (call_on_stmt M_state_assign nterm state return break continue throw))
+      ((nterm_oftype? nterm 'if) (call_on_stmt M_state_if nterm state return break continue throw ctch))
+      ((nterm_oftype? nterm 'while) (call_on_stmt M_state_while nterm state return break continue throw ctch))
+      ((nterm_oftype? nterm 'var) (call_on_stmt M_state_declare nterm state return break continue throw ctch))
+      ((nterm_oftype? nterm '=) (call_on_stmt M_state_assign nterm state return break continue throw ctch))
       ; return is an M_value function even though called from an M_state because the continuation breaks normal control flow
-      ((nterm_oftype? nterm 'return) (call_on_stmt M_value_return nterm state return break continue throw)) ; if we're returning x, it passes the name and not value to M_value_return
-      ((nterm_oftype? nterm 'break) (call_on_stmt M_value_break nterm state return break continue throw))
-      ((nterm_oftype? nterm 'continue) (call_on_stmt M_value_continue nterm state return break continue throw))
-      ((nterm_oftype? nterm 'throw) (call_on_stmt M_value_throw nterm state return break continue throw))
-      ((nterm_oftype? nterm 'try) (call_on_stmt M_state_try nterm state return break continue throw))
-      ((nterm_oftype? nterm 'begin) (call_on_stmt M_state_block nterm state return break continue throw)) 
+      ((nterm_oftype? nterm 'return) (call_on_stmt M_value_return nterm state return break continue throw ctch)) ; if we're returning x, it passes the name and not value to M_value_return
+      ((nterm_oftype? nterm 'break) (call_on_stmt M_value_break nterm state return break continue throw ctch))
+      ((nterm_oftype? nterm 'continue) (call_on_stmt M_state_continue nterm state return break continue throw ctch))
+      ((nterm_oftype? nterm 'throw) (call_on_stmt M_state_throw nterm state return break continue throw ctch))
+      ((nterm_oftype? nterm 'try) (call_on_stmt M_state_try nterm state return break continue throw ctch))
+      ((nterm_oftype? nterm 'begin) (call_on_stmt M_state_block nterm state return break continue throw ctch)) 
       (else (error_unrecognized_symbol (next_stmt nterm))))))
 
 ; determine if the nonterminal is of a given type
@@ -95,10 +95,10 @@
        (pop_frame (M_state_stmt-list nterm (push_frame state) return break continue throw))))
 
 (define M_state_if
-  (lambda (nterm state return break continue throw)
+  (lambda (nterm state return break continue throw ctch)
     (cond
-      ((eq? (M_boolean_condition (condition nterm) state) #t) (M_state_stmt (then_stmt nterm) state return break continue throw))
-      ((has_else? nterm) (M_state_stmt (else_stmt nterm) state return break continue throw))
+      ((eq? (M_boolean_condition (condition nterm) state) #t) (M_state_stmt (then_stmt nterm) state return break continue throw ctch))
+      ((has_else? nterm) (M_state_stmt (else_stmt nterm) state return break continue throw ctch))
       (else state))))
 
 ; given a conditional, extract the condition
@@ -117,7 +117,7 @@
     (caddr conditional)))
 
 (define M_state_while
-  (lambda (nterm state return break continue throw)
+  (lambda (nterm state return break continue throw ctch)
     (call/cc
      (lambda (break)
        (cond
@@ -125,20 +125,28 @@
              (M_state_while nterm 
                             (call/cc
                              (lambda (continue)
-                               (M_state_stmt (then_stmt nterm) state return break continue throw))) return break continue throw))
+                               (M_state_stmt (then_stmt nterm) state return break continue throw ctch))) return break continue throw ctch))
          (else state))))))
 
 (define M_state_try
-  (lambda (nterm state return break continue throw)
+  (lambda (nterm state return break continue throw ctch)
     (call/cc
      (lambda (throw)
        (if (has_finally? nterm)
-           (M_state_stmt-list (try_body_finally nterm) (M_state_stmt-list (try_body_contents nterm) state return break continue throw) return break continue throw)
-           (M_state_stmt-list (try_body_contents nterm) state return break continue throw))))))
+           (M_state_stmt-list (try_body_finally nterm) (M_state_stmt-list (try_body_contents nterm) state return break continue throw (try_body_catch nterm)) return break continue throw (try_body_catch nterm))
+           (M_state_stmt-list (try_body_contents nterm) state return break continue throw (try_body_catch nterm)))))))
+
+(define M_state_catch
+  (lambda (nterm state return break continue throw ctch)
+    (M_state_stmt-list ctch state return break continue throw ctch)))
 
 (define try_body_contents
   (lambda (body)
     (car body)))
+
+(define try_body_catch
+  (lambda (body)
+    (car (caddr body))))
 
 (define try_body_finally
   (lambda (body)
@@ -154,7 +162,7 @@
     (eq? (len nterm) 2)))
 
 (define M_state_declare
-  (lambda (nterm state return break continue throw)
+  (lambda (nterm state return break continue throw ctch)
     (if (declare_has_assign? nterm)
         (update_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state) ;add the variable to the state and assign it
         (update_state (stmt_var_name nterm) (error_value) state)))) ;otherwise just assign it error
@@ -170,27 +178,27 @@
     (cadr nterm)))
 
 (define M_state_assign
-  (lambda (nterm state return break continue throw)
+  (lambda (nterm state return break continue throw ctch)
     (if (state_contains? (stmt_var_name nterm) state)
         (update_state (stmt_var_name nterm) (M_boolean_compare_expression (stmt_var_value nterm) state) state)
         ; checking for undeclaration
         (error_undeclared_variable (stmt_var_name nterm)))))
 
 (define M_value_return
-  (lambda (nterm state return break continue throw)
+  (lambda (nterm state return break continue throw ctch)
     (return (M_boolean_condition (stmt_var_name nterm) state))))
 
 (define M_value_break
   (lambda (nterm state return break continue throw)
     (break state)))
 
-(define M_value_continue
+(define M_state_continue
   (lambda (nterm state return break continue throw)
     (continue state)))
 
-(define M_value_throw
-  (lambda (nterm state return break continue throw)
-    (throw state)))
+(define M_state_throw
+  (lambda (nterm state return break continue throw ctch)
+    (M_state_catch nterm (throw state) return break continue throw ctch)))
 
 (trace M_value_throw)
 
