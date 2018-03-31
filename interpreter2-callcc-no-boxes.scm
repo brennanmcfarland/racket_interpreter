@@ -13,6 +13,7 @@
 ; The functions that start interpret-...  all return the current environment.
 ; The functions that start eval-...  all return a value
 
+
 ; The main function.  Calls parser to get the parse tree and interprets it with a new environment.  The returned value is in the environment.
 (define interpret
   (lambda (file)
@@ -26,7 +27,7 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment return break continue throw)
-    (eval-function (lookup main (create-bindings program return break continue throw))
+    (eval-function (lookup 'main (create-bindings program return break continue throw))
                         (create-bindings program return break continue throw) return break continue throw)))
                               
 ; for the "outer layer" of the interpreter
@@ -34,7 +35,7 @@
 ; returns the environment with bindings
 (define create-bindings
   (lambda (program return break continue throw)
-    (interpret-statement-list (program (newenvironment) return break continue throw)))) 
+    (interpret-statement-list program (newenvironment) return break continue throw))) 
      
 ; interprets a list of statements.  The environment from each statement is used for the next ones.
 (define interpret-statement-list
@@ -64,7 +65,7 @@
 ; we bind the function as if it were any other variable, with its closure as the value
 (define bind-function
   (lambda (statement environment return break continue throw)
-    (insert (get-declare-var statement) (get-declare-closure statement) environment)))
+    (insert (get-declare-var statement) (make-declare-closure statement environment) environment)))
     
 
 ; Calls the return continuation with the given expression value
@@ -172,9 +173,11 @@
   (lambda (statement environment return break continue throw)
     ( ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
-     (lookup (statement-type statement) environment) ; get the closure
-    )
-    ))
+     (interpret-statement-list (get-function-body statement)
+                               ( ; get the environment, TODO: including actual parameters
+                                (actualize-parameters (get-function-args statement) (get-function-params (get-function-closure environment)) (compose-closure-environment (get-function-closure environment) environment))
+                                )
+                               return break continue throw))))
 
 ; TODO: what about when the function changes global state?
 (define eval-function
@@ -268,14 +271,47 @@
   (lambda (statement)
     (not (null? (cdddr statement)))))
 
+; TODO: move to the right place
+; get the function environment given the current environment
+(define get-function-environment
+  (lambda (funcenvironment currentenvironment)
+    (get-function-binding-values (variables-in-environment funcenvironment) funcenvironment currentenvironment)))
+
+; TODO: rename this and move to the appropriate place
+; given the list of variables to update for the function environment, update them with the values from the current state
+(define get-function-binding-values
+  (lambda (vars funcenvironment currentenvironment)
+    (cond
+      ((null? vars) (funcenvironment))
+      (else (get-function-binding-values (remaining vars) (update (firstof vars) (lookup (firstof vars) currentenvironment) funcenvironment) currentenvironment)))))
+
+; TODO: move to the right place
+; get the next frame of the function environment given the current environment and add it to the function environment
+;(define add-function-frame
+;  (lambda (funcenvironment currentenvironment)
+;    (cond
+;      ((eq? (topframe funcenvironment) (newframe)) funcenvironment)
+;      (())
+    
+
 ; these helper functions define the parts of the various statement types
 (define statement-type operator)
 (define get-expr operand1)
 (define get-declare-var operand1)
 (define get-declare-value operand2)
-; TODO: get-declare-closure still needs to include the last part of the closure, where it creates the function environment from current
-(define get-declare-closure (cons operand2 operand3))
+(define make-declare-closure
+  (lambda (statement environment)
+    (cons (operand2 statement) (cons (operand3 statement) (lambda (newenv) (get-function-environment environment newenv))))))
+; TODO: move to the right place, possibly rename
+(define get-function-closure operand2)
+; TODO: "
+(define compose-closure-environment
+  (lambda (closure environment)
+    ((operand2 statement) environment)))
 (define exists-declare-value? exists-operand2?)
+(define get-function-body operand1)
+(define get-function-args operator)
+(define get-function-params operand2)
 (define get-assign-lhs operand1)
 (define get-assign-rhs operand2)
 (define get-condition operand1)
