@@ -31,8 +31,15 @@
   (lambda (var environment)
     (cond
       ((null? environment) #f)
-      ((exists-in-list? var (variables (topframe environment))) #t)
+      ((exists-in-frame? (topframe environment)) #t)
       (else (exists? var (remainingframes environment))))))
+
+; does a variable exists in the frame?
+(define exists-in-frame?
+  (lambda (var frame)
+    (cond
+      ((exists-in-list? var (variables frame)) #t)
+      (else #f))))
 
 ; does a variable exist in a list?
 (define exists-in-list?
@@ -134,6 +141,14 @@
       ((eq? var (car varlist)) (cons (scheme->language val) (cdr vallist)))
       (else (cons (car vallist) (update-in-frame-store var val (cdr varlist) (cdr vallist)))))))
 
+; Returns the list of variables from the environment
+; TODO: fix this and variables to be consistent with naming conventions
+(define variables-in-environment
+  (lambda (environment)
+    (cond
+      ((eq? environment (newenvironment)) '())
+      (else (myappend (variables (topframe environment)) (variables-in-environment (pop-frame environment)))))))
+
 ; Returns the list of variables from a frame
 (define variables
   (lambda (frame)
@@ -143,3 +158,11 @@
 (define store
   (lambda (frame)
     (cadr frame)))
+
+; TODO: this is a helper function, move it to the right place
+; append list l1 to list l2
+(define myappend
+  (lambda (l1 l2)
+    (if (null? l1)
+        l2
+        (cons (car l1) (myappend (cdr l1) l2)))))
