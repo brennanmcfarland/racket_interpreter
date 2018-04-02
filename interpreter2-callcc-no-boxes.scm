@@ -339,7 +339,7 @@
 (define get-declare-value operand2)
 (define make-declare-closure
   (lambda (statement environment)
-    (cons (operand2 statement) (cons (operand3 statement) (trace-lambda (newenv) (get-function-environment environment newenv))))))
+    (list (operand2 statement) (list (operand3 statement) (trace-lambda (newenv) (get-function-environment environment newenv))))))
 
 ; TODO: move to the right place, possibly rename
 (define get-function-closure operand2) ;operand2
