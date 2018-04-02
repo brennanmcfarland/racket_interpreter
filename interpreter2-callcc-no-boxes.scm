@@ -342,7 +342,7 @@
     (cons (operand2 statement) (cons (operand3 statement) (trace-lambda (newenv) (get-function-environment environment newenv))))))
 
 ; TODO: move to the right place, possibly rename
-(define get-function-closure operand1) ;operand2
+(define get-function-closure operand2) ;operand2
 ; TODO: "
 (define compose-closure-environment
   (lambda (closure environment)
