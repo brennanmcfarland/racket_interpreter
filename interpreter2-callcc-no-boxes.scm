@@ -19,10 +19,10 @@
   (lambda (file)
     (scheme->language
      (call/cc
-      (trace-lambda (return)
+      (lambda (return)
         (run-program (parser file) (newenvironment) return
-                                  (trace-lambda (env) (myerror "Break used outside of loop")) (trace-lambda (env) (myerror "Continue used outside of loop"))
-                                  (trace-lambda (v env) (myerror "Uncaught exception thrown"))))))))
+                                  (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
+                                  (lambda (v env) (myerror "Uncaught exception thrown"))))))))
 (trace interpret)
 
 ; perform bindings and execute main() in the interpreted program
@@ -107,10 +107,10 @@
 (define interpret-while
   (lambda (statement environment return throw)
     (call/cc
-     (trace-lambda (break)
-       (trace-letrec ((loop (trace-lambda (condition body environment)
+     (lambda (break)
+       (letrec ((loop (lambda (condition body environment)
                         (if (eval-expression condition environment)
-                            (loop condition body (interpret-statement body environment return break (trace-lambda (env) (break (loop condition body env))) throw))
+                            (loop condition body (interpret-statement body environment return break (lambda (env) (break (loop condition body env))) throw))
                          environment))))
          (loop (get-condition statement) (get-body statement) environment))))))
 
@@ -121,9 +121,9 @@
     (pop-frame (interpret-statement-list (cdr statement)
                                          (push-frame environment)
                                          return
-                                         (trace-lambda (env) (break (pop-frame env)))
-                                         (trace-lambda (env) (continue (pop-frame env)))
-                                         (trace-lambda (v env) (throw v (pop-frame env)))))))
+                                         (lambda (env) (break (pop-frame env)))
+                                         (lambda (env) (continue (pop-frame env)))
+                                         (lambda (v env) (throw v (pop-frame env)))))))
 
 (trace interpret-block)
 ; We use a continuation to throw the proper value. Because we are not using boxes, the environment/state must be thrown as well so any environment changes will be kept
@@ -139,17 +139,17 @@
 (define create-throw-catch-continuation
   (lambda (catch-statement environment return break continue throw jump finally-block)
     (cond
-      ((null? catch-statement) (trace-lambda (ex env) (throw ex (interpret-block finally-block env return break continue throw)))) 
+      ((null? catch-statement) (lambda (ex env) (throw ex (interpret-block finally-block env return break continue throw)))) 
       ((not (eq? 'catch (statement-type catch-statement))) (myerror "Incorrect catch statement"))
-      (else (trace-lambda (ex env)
+      (else (lambda (ex env)
               (jump (interpret-block finally-block
                                      (pop-frame (interpret-statement-list 
                                                  (get-body catch-statement) 
                                                  (insert (catch-var catch-statement) ex (push-frame env))
                                                  return 
-                                                 (trace-lambda (env2) (break (pop-frame env2))) 
-                                                 (trace-lambda (env2) (continue (pop-frame env2))) 
-                                                 (trace-lambda (v env2) (throw v (pop-frame env2)))))
+                                                 (lambda (env2) (break (pop-frame env2))) 
+                                                 (lambda (env2) (continue (pop-frame env2))) 
+                                                 (lambda (v env2) (throw v (pop-frame env2)))))
                                      return break continue throw)))))))
 
 (trace create-throw-catch-continuation)
@@ -158,12 +158,12 @@
 (define interpret-try
   (lambda (statement environment return break continue throw)
     (call/cc
-     (trace-lambda (jump)
+     (lambda (jump)
        (trace-let* ((finally-block (make-finally-block (get-finally statement)))
               (try-block (make-try-block (get-try statement)))
-              (new-return (trace-lambda (v) (begin (interpret-block finally-block environment return break continue throw) (return v))))
-              (new-break (trace-lambda (env) (break (interpret-block finally-block env return break continue throw))))
-              (new-continue (trace-lambda (env) (continue (interpret-block finally-block env return break continue throw))))
+              (new-return (lambda (v) (begin (interpret-block finally-block environment return break continue throw) (return v))))
+              (new-break (lambda (env) (break (interpret-block finally-block env return break continue throw))))
+              (new-continue (lambda (env) (continue (interpret-block finally-block env return break continue throw))))
               (new-throw (create-throw-catch-continuation (get-catch statement) environment return break continue throw jump finally-block)))
          (interpret-block finally-block
                           (interpret-block try-block environment new-return new-break new-continue new-throw)
@@ -189,15 +189,15 @@
 ; TODO: move interpret to the right place, if it needs to be here
 (define interpret-function
   (lambda (statement environment return break continue throw)
-    ( ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
+    ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
      (interpret-statement-list (get-function-body statement)
-                               ;( ; get the environment, TODO: including actual parameters
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-function-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
-                                (actualize-parameters (get-function-args statement) (get-function-params (get-function-closure environment)) (compose-closure-environment (get-function-closure environment) environment)) ;trace these functions and should just get appropriate output/input
-                                ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure statement)) (compose-closure-environment (get-function-closure statement) environment))
+                                (actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (operator statement) environment)) (compose-closure-environment (get-function-closure (operator statement) environment) environment)) ;trace these functions and should just get appropriate output/input
+                                ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure statement)) (compose-closure-en
+                                ;vironment (get-function-closure statement) environment))
                                 ;)
-                               return break continue throw))))
+                               return break continue throw)))
 
 (trace interpret-function)
 ; TODO: what about when the function changes global state?
@@ -339,10 +339,12 @@
 (define get-declare-value operand2)
 (define make-declare-closure
   (lambda (statement environment)
-    (list (operand2 statement) (list (operand3 statement) (trace-lambda (newenv) (get-function-environment environment newenv))))))
+    (list (operand2 statement) (list (operand3 statement) (lambda (newenv) (get-function-environment environment newenv))))))
 
 ; TODO: move to the right place, possibly rename
-(define get-function-closure operand2) ;operand2
+(define get-function-closure
+  (lambda (name environment)
+    (lookup name environment)))
 ; TODO: "
 (define compose-closure-environment
   (lambda (closure environment)
@@ -408,13 +410,13 @@
 (trace scheme->language)
 ; Because the error function is not defined in R5RS scheme, I create my own:
 (define error-break (lambda (v) v))
-(call-with-current-continuation (trace-lambda (k) (set! error-break k)))
+(call-with-current-continuation (lambda (k) (set! error-break k)))
 
 (trace error-break)
 
 (define myerror
   (lambda (str . vals)
-    (trace-letrec ((makestr (trace-lambda (str vals)
+    (letrec ((makestr (lambda (str vals)
                         (if (null? vals)
                             str
                             (makestr (string-append str (string-append " " (symbol->string (car vals)))) (cdr vals))))))
