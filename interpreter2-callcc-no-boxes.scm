@@ -197,7 +197,7 @@
                                                       (get-function-params
                                                        (get-function-closure name environment))
                                                       (compose-closure-environment
-                                                       (cadr statement) environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
+                                                       statement environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure statement)) (compose-closure-en
                                 ;vironment (get-function-closure statement) environment))
                                 ;)
@@ -352,7 +352,7 @@
 ; TODO: "
 (define compose-closure-environment
   (lambda (closure environment)
-    (operand2 closure))) ;((operand2 statement) environment)))
+    (list (operator closure) '()))) ;((operand2 statement) environment)))
 (define exists-declare-value? exists-operand2?)
 (define get-function-body operand1)
 (define get-function-args operator)
