@@ -317,7 +317,7 @@
   (lambda (funcenvironment currentenvironment)
     (get-function-binding-values (variables-in-environment funcenvironment) funcenvironment currentenvironment)))
 
-(trace get-function-environment)
+;(trace get-function-environment)
 ; TODO: rename this and move to the appropriate place
 ; given the list of variables to update for the function environment, update them with the values from the current state
 (define get-function-binding-values
@@ -352,7 +352,7 @@
 ; TODO: "
 (define compose-closure-environment
   (lambda (closure environment)
-    (list (list (operator closure) '())))) ;((operand2 statement) environment)))
+    (list (list (operator closure) (cdadar environment))))) ;((operand2 statement) environment)))   (list (list (operator closure) (cdadar environment)))))
 (define exists-declare-value? exists-operand2?)
 (define get-function-body operand1)
 (define get-function-args operator)
