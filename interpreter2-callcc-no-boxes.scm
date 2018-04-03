@@ -63,6 +63,7 @@
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
       ((eq? 'function (statement-type statement)) (bind-function statement environment return break continue throw))
+      ((eq? 'funcall (statement-type statement)) (interpret-function statement environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
 
 (trace interpret-statement)
@@ -234,7 +235,15 @@
       ((number? expr) expr)
       ((eq? expr 'true) #t)
       ((eq? expr 'false) #f)
-      ((valid-function? expr environment) (eval-function name expr environment))
+      ; TODO: remove cdr
+      ; TODO: may need to redefine some of the continuations here
+      ((valid-function? (cdr expr) environment)
+       (call/cc
+        (lambda (return)
+          (eval-function (cadr expr) (cdr expr) environment
+                                  return
+                                  (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
+                                  (lambda (v env) (myerror "Uncaught exception thrown"))))))
       ((not (list? expr)) (lookup expr environment))
       (else (eval-operator expr environment)))))
 
