@@ -28,7 +28,7 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment return break continue throw)
-    (eval-function (lookup 'main (create-bindings program return break continue throw))
+    (eval-function 'main (lookup 'main (create-bindings program return break continue throw))
                         (create-bindings program return break continue throw) return break continue throw)))
 
 (trace run-program)
@@ -188,12 +188,16 @@
 ; TODO: evaluate/update state from a function call
 ; TODO: move interpret to the right place, if it needs to be here
 (define interpret-function
-  (lambda (statement environment return break continue throw)
+  (lambda (name statement environment return break continue throw)
     ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
      (interpret-statement-list (get-function-body statement)
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-function-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
-                                (actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (operator statement) environment)) (compose-closure-environment (get-function-closure (operator statement) environment) environment)) ;trace these functions and should just get appropriate output/input
+                                (actualize-parameters (get-function-args statement)
+                                                      (get-function-params
+                                                       (get-function-closure name environment))
+                                                      (compose-closure-environment
+                                                       (cadadr statement) environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure statement)) (compose-closure-en
                                 ;vironment (get-function-closure statement) environment))
                                 ;)
@@ -202,8 +206,8 @@
 (trace interpret-function)
 ; TODO: what about when the function changes global state?
 (define eval-function
-  (lambda (statement environment return break continue throw)
-    (interpret-function statement environment return break continue throw)))
+  (lambda (name statement environment return break continue throw)
+    (interpret-function name statement environment return break continue throw)))
 
 (trace eval-function)
 ; TODO: move to helper section
@@ -230,7 +234,7 @@
       ((number? expr) expr)
       ((eq? expr 'true) #t)
       ((eq? expr 'false) #f)
-      ((valid-function? expr environment) (eval-function expr environment))
+      ((valid-function? expr environment) (eval-function name expr environment))
       ((not (list? expr)) (lookup expr environment))
       (else (eval-operator expr environment)))))
 
@@ -352,7 +356,7 @@
 (define exists-declare-value? exists-operand2?)
 (define get-function-body operand1)
 (define get-function-args operator)
-(define get-function-params operand2)
+(define get-function-params operator)
 (define get-assign-lhs operand1)
 (define get-assign-rhs operand2)
 (define get-condition operand1)
