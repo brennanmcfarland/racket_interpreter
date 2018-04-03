@@ -1,7 +1,7 @@
 ;------------------------
 ; Environment/State Functions
 ;------------------------
-
+(require racket/trace)
 ; create a new empty environment
 (define newenvironment
   (lambda ()
@@ -31,7 +31,7 @@
   (lambda (var environment)
     (cond
       ((null? environment) #f)
-      ((exists-in-frame? (topframe environment)) #t)
+      ((exists-in-frame? var (topframe environment)) #t)
       (else (exists? var (remainingframes environment))))))
 
 ; does a variable exists in the frame?
@@ -99,6 +99,7 @@
         (myerror "error: variable is being re-declared:" var)
         (cons (add-to-frame var val (car environment)) (cdr environment)))))
 
+(trace insert)
 ; Binds a function name to its closure.  Gives an error if the function already exists in this frame
 ; All function bindings are in the base level of the state
 ; TODO: should it just give an error then, or at all?  allow redefinition?  when?
@@ -147,6 +148,7 @@
   (lambda (environment)
     (cond
       ((eq? environment (newenvironment)) '())
+      ((eq? environment '()) '())
       (else (myappend (variables (topframe environment)) (variables-in-environment (pop-frame environment)))))))
 
 ; Returns the list of variables from a frame

@@ -200,8 +200,6 @@
   (lambda (nterm state return break continue throw ctch)
     (M_state_catch nterm (throw state) return break continue throw ctch)))
 
-(trace M_value_throw)
-
 ; evaluates a conditional as true or false
 
 (define M_boolean_condition
