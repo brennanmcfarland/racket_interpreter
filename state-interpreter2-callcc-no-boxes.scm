@@ -31,7 +31,7 @@
   (lambda (var environment)
     (cond
       ((null? environment) #f)
-      ((exists-in-frame? (topframe environment)) #t)
+      ((exists-in-frame? var (topframe environment)) #t)
       (else (exists? var (remainingframes environment))))))
 
 ; does a variable exists in the frame?

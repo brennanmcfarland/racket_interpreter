@@ -243,7 +243,7 @@
 ; determine if the S-expression is a function in the environment
 (define valid-function?
   (lambda (expr environment)
-    (if (exists? (statement-type expr) environment)
+    (if (and (list? expr) (exists? (statement-type expr) environment))
         #t
         #f)))
 
