@@ -352,7 +352,7 @@
 ; TODO: "
 (define compose-closure-environment
   (lambda (closure environment)
-    (list (operator closure) '()))) ;((operand2 statement) environment)))
+    (list (list (operator closure) '())))) ;((operand2 statement) environment)))
 (define exists-declare-value? exists-operand2?)
 (define get-function-body operand1)
 (define get-function-args operator)

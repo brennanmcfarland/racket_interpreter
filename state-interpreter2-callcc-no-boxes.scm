@@ -1,7 +1,7 @@
 ;------------------------
 ; Environment/State Functions
 ;------------------------
-
+(require racket/trace)
 ; create a new empty environment
 (define newenvironment
   (lambda ()
@@ -99,6 +99,7 @@
         (myerror "error: variable is being re-declared:" var)
         (cons (add-to-frame var val (car environment)) (cdr environment)))))
 
+(trace insert)
 ; Binds a function name to its closure.  Gives an error if the function already exists in this frame
 ; All function bindings are in the base level of the state
 ; TODO: should it just give an error then, or at all?  allow redefinition?  when?
