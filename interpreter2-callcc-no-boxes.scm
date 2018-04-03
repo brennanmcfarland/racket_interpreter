@@ -197,7 +197,7 @@
                                                       (get-function-params
                                                        (get-function-closure name environment))
                                                       (compose-closure-environment
-                                                       (cadadr statement) environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
+                                                       (cadr statement) environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure statement)) (compose-closure-en
                                 ;vironment (get-function-closure statement) environment))
                                 ;)
@@ -343,7 +343,7 @@
 (define get-declare-value operand2)
 (define make-declare-closure
   (lambda (statement environment)
-    (list (operand2 statement) (list (operand3 statement) (lambda (newenv) (get-function-environment environment newenv))))))
+    (list (operand2 statement) (operand3 statement) (lambda (newenv) (get-function-environment environment newenv)))))
 
 ; TODO: move to the right place, possibly rename
 (define get-function-closure
