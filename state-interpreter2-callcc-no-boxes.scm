@@ -148,6 +148,7 @@
   (lambda (environment)
     (cond
       ((eq? environment (newenvironment)) '())
+      ((eq? environment '()) '())
       (else (myappend (variables (topframe environment)) (variables-in-environment (pop-frame environment)))))))
 
 ; Returns the list of variables from a frame

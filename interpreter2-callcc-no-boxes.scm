@@ -323,8 +323,8 @@
 (define get-function-binding-values
   (lambda (vars funcenvironment currentenvironment)
     (cond
-      ((null? vars) (funcenvironment))
-      (else (get-function-binding-values (remaining vars) (update (firstof vars) (lookup (firstof vars) currentenvironment) funcenvironment) currentenvironment)))))
+      ((null? vars) funcenvironment)
+      (else (get-function-binding-values (remaining vars) (update (nextof vars) (lookup (nextof vars) currentenvironment) funcenvironment) currentenvironment)))))
 
 (trace get-function-binding-values)
 ; TODO: move to the right place
@@ -352,7 +352,7 @@
 ; TODO: "
 (define compose-closure-environment
   (lambda (closure environment)
-    (list (list (operator closure) (cdadar environment))))) ;((operand2 statement) environment)))   (list (list (operator closure) (cdadar environment)))))
+    ((operand2 closure) environment))) ;(list (list (operator closure) (cdadar environment))))) ;((operand2 statement) environment)))   (list (list (operator closure) (cdadar environment)))))
 (define exists-declare-value? exists-operand2?)
 (define get-function-body operand1)
 (define get-function-args operator)
