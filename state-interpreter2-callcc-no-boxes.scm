@@ -99,7 +99,7 @@
         (myerror "error: variable is being re-declared:" var)
         (cons (add-to-frame var val (car environment)) (cdr environment)))))
 
-(trace insert)
+; (trace insert)
 ; Binds a function name to its closure.  Gives an error if the function already exists in this frame
 ; All function bindings are in the base level of the state
 ; TODO: should it just give an error then, or at all?  allow redefinition?  when?
@@ -110,6 +110,12 @@
 ;        (myerror "error: function is being re-defined:" func)
 ;        (
     
+; Changes the binding of a variable to a new value in the environment, or adds a new variable/value binding pair if it doesn't exist in this frame.
+(define passive-update
+  (lambda (var val environment)
+    (if (exists-in-list? var (variables (car environment)))
+        (update var val environment)
+        (insert var val environment))))
 
 ; Changes the binding of a variable to a new value in the environment.  Gives an error if the variable does not exist.
 (define update
@@ -143,13 +149,15 @@
       (else (cons (car vallist) (update-in-frame-store var val (cdr varlist) (cdr vallist)))))))
 
 ; Returns the list of variables from the environment
+; if the function argument is not null, add it to the returned list of variables (used in making the closure)
 ; TODO: fix this and variables to be consistent with naming conventions
 (define variables-in-environment
-  (lambda (environment)
+  (lambda (environment function)
     (cond
+      ((not (null? function)) (cons function (variables-in-environment environment '())))
       ((eq? environment (newenvironment)) '())
       ((eq? environment '()) '())
-      (else (myappend (variables (topframe environment)) (variables-in-environment (pop-frame environment)))))))
+      (else (myappend (variables (topframe environment)) (variables-in-environment (pop-frame environment) '()))))))
 
 ; Returns the list of variables from a frame
 (define variables
