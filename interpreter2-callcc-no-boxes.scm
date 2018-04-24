@@ -28,7 +28,7 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment return break continue throw)
-    (eval-function (get-function-closure 'main (create-bindings program return break continue throw))
+    (eval-function (get-function-closure 'main (create-bindings program return break continue throw)) '()
                         (create-bindings program return break continue throw) return break continue throw)))
 
 (trace run-program)
@@ -63,7 +63,7 @@
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
       ((eq? 'function (statement-type statement)) (bind-function statement environment return break continue throw))
-      ((eq? 'funcall (statement-type statement)) (interpret-function (get-function-closure (statement) environment) environment return break continue throw))
+      ((eq? 'funcall (statement-type statement)) (interpret-function (get-function-closure (statement) environment) (get-function-args statement) environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
 
 (trace interpret-statement)
@@ -190,14 +190,14 @@
 ; TODO: move interpret to the right place, if it needs to be here
 ; statement is the functi
 (define interpret-function
-  (lambda (statement environment return break continue throw)
+  (lambda (statement args environment return break continue throw)
     ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
      (interpret-statement-list (get-function-body statement)
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-function-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
                                ; TODO: THIS IS WHERE THE ERROR IS, ACTUALIZE-PARAMETERS IS GETTING THE PARAMS WHEN IT SHOULD GET ARGS
                                ; the problem is that we're not passing it the arguments and it's instead using the params as the args
-                               (actualize-parameters (get-function-args statement)
+                               (actualize-parameters args
                                                       (get-function-params
                                                        statement) ; TODO: it needs the function name, that's the problem
                                                       (compose-closure-environment
@@ -207,11 +207,12 @@
                                 ;)
                                return break continue throw)))
 
+; TODO: may want to actualize parameters in here instead and pass it the whole function call instead of closure and args separately to make it neater
 (trace interpret-function)
 ; TODO: what about when the function changes global state?
 (define eval-function
-  (lambda (statement environment return break continue throw)
-    (interpret-function statement environment return break continue throw)))
+  (lambda (statement args environment return break continue throw)
+    (interpret-function statement args environment return break continue throw)))
 
 (trace eval-function)
 ; TODO: move to helper section
@@ -243,7 +244,7 @@
       ((valid-function? expr environment)
        (call/cc
         (lambda (return)
-          (eval-function (get-function-closure (cadr expr) environment) environment
+          (eval-function (get-function-closure (cadr expr) environment) (get-function-args expr) environment
                                   return
                                   (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
                                   (lambda (v env) (myerror "Uncaught exception thrown"))))))
@@ -255,9 +256,15 @@
 ; determine if the S-expression is a function in the environment
 (define valid-function?
   (lambda (expr environment)
-    (if (and (list? expr) (exists? (get-expr expr) environment))
+    (if (and (list? expr) (eq? (operator expr) 'funcall))
         #t
-        #f)))
+        #f
+        )))
+;(define valid-function?
+;  (lambda (expr environment)
+;    (if (and (list? expr) (exists? (get-expr expr) environment))
+;        #t
+;        #f)))
 
 (trace valid-function?)
 ; Evaluate a binary (or unary) operator.  Although this is not dealing with side effects, I have the routine evaluate the left operand first and then
@@ -367,7 +374,11 @@
     ((operand2 closure) environment))) ;(list (list (operator closure) (cdadar environment))))) ;((operand2 statement) environment)))   (list (list (operator closure) (cdadar environment)))))
 (define exists-declare-value? exists-operand2?)
 (define get-function-body operand1)
-(define get-function-args operator)
+(define get-function-args
+  (lambda (statement)
+    (if (list? (operand2 statement))
+        (operand2 statement)
+        (cons (operand2 statement) '()))))
 (define get-function-params operator)
 (define get-assign-lhs operand1)
 (define get-assign-rhs operand2)
