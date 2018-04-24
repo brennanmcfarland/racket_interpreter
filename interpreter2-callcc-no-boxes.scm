@@ -189,14 +189,14 @@
 ; TODO: evaluate/update state from a function call
 ; TODO: move interpret to the right place, if it needs to be here
 (define interpret-function
-  (lambda (name statement environment return break continue throw)
+  (lambda (statement environment return break continue throw)
     ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
      (interpret-statement-list (get-function-body statement)
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-function-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
                                 (actualize-parameters (get-function-args statement)
                                                       (get-function-params
-                                                       (get-function-closure name environment))
+                                                       statement) ; TODO: it needs the function name, that's the problem
                                                       (compose-closure-environment
                                                        statement environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure statement)) (compose-closure-en
@@ -208,7 +208,7 @@
 ; TODO: what about when the function changes global state?
 (define eval-function
   (lambda (name statement environment return break continue throw)
-    (interpret-function name statement environment return break continue throw)))
+    (interpret-function statement environment return break continue throw)))
 
 (trace eval-function)
 ; TODO: move to helper section
@@ -237,7 +237,7 @@
       ((eq? expr 'false) #f)
       ; TODO: remove cdr
       ; TODO: may need to redefine some of the continuations here
-      ((valid-function? (cdr expr) environment)
+      ((valid-function? expr environment)
        (call/cc
         (lambda (return)
           (eval-function (cadr expr) (cdr expr) environment
