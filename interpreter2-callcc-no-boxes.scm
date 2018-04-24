@@ -28,7 +28,7 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment return break continue throw)
-    (eval-function 'main (lookup 'main (create-bindings program return break continue throw))
+    (eval-function (get-function-closure 'main (create-bindings program return break continue throw))
                         (create-bindings program return break continue throw) return break continue throw)))
 
 (trace run-program)
@@ -63,7 +63,7 @@
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
       ((eq? 'function (statement-type statement)) (bind-function statement environment return break continue throw))
-      ((eq? 'funcall (statement-type statement)) (interpret-function statement environment return break continue throw))
+      ((eq? 'funcall (statement-type statement)) (interpret-function (get-function-closure (statement) environment) environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
 
 (trace interpret-statement)
@@ -188,13 +188,16 @@
 (trace make-finally-block)
 ; TODO: evaluate/update state from a function call
 ; TODO: move interpret to the right place, if it needs to be here
+; statement is the functi
 (define interpret-function
   (lambda (statement environment return break continue throw)
     ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
      (interpret-statement-list (get-function-body statement)
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-function-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
-                                (actualize-parameters (get-function-args statement)
+                               ; TODO: THIS IS WHERE THE ERROR IS, ACTUALIZE-PARAMETERS IS GETTING THE PARAMS WHEN IT SHOULD GET ARGS
+                               ; the problem is that we're not passing it the arguments and it's instead using the params as the args
+                               (actualize-parameters (get-function-args statement)
                                                       (get-function-params
                                                        statement) ; TODO: it needs the function name, that's the problem
                                                       (compose-closure-environment
@@ -207,7 +210,7 @@
 (trace interpret-function)
 ; TODO: what about when the function changes global state?
 (define eval-function
-  (lambda (name statement environment return break continue throw)
+  (lambda (statement environment return break continue throw)
     (interpret-function statement environment return break continue throw)))
 
 (trace eval-function)
@@ -216,7 +219,7 @@
 (define actualize-parameters
   (lambda (args params environment)
     (if (not (null? args))
-        (insert (nextof args) (nextof params) (actualize-parameters (remaining args) (remaining params) environment))
+        (insert (nextof params) (nextof args) (actualize-parameters (remaining params) (remaining args) environment))
         environment)))
 
 (trace actualize-parameters)
@@ -240,7 +243,7 @@
       ((valid-function? expr environment)
        (call/cc
         (lambda (return)
-          (eval-function (cadr expr) (cdr expr) environment
+          (eval-function (get-function-closure (cadr expr) environment) environment
                                   return
                                   (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
                                   (lambda (v env) (myerror "Uncaught exception thrown"))))))
@@ -252,7 +255,7 @@
 ; determine if the S-expression is a function in the environment
 (define valid-function?
   (lambda (expr environment)
-    (if (and (list? expr) (exists? (statement-type expr) environment))
+    (if (and (list? expr) (exists? (get-expr expr) environment))
         #t
         #f)))
 
