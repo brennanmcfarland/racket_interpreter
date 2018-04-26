@@ -26,6 +26,10 @@
 (define topframe car)
 (define remainingframes cdr)
 
+; get global variables from the environment
+(define get-globals
+  
+
 ; does a variable exist in the environment?
 (define exists?
   (lambda (var environment)

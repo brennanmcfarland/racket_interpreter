@@ -211,7 +211,7 @@
   (lambda (args environment)
     (cond
       ((null? args) '())
-      ((not (isprimitive? (nextof args))) (cons (eval-expression args environment) '()))
+      ((not (isprimitive? (nextof args))) (cons (cons (eval-expression (nextof args) environment) '()) (eval-args (remaining args) environment)))
       (else (cons (eval-expression (nextof args) environment) (eval-args (remaining args) environment))))))
 
 ; TODO: may want to actualize parameters in here instead and pass it the whole function call instead of closure and args separately to make it neater
@@ -375,6 +375,8 @@
 (define get-declare-value operand2)
 (define make-declare-closure
   (lambda (statement environment)
+    ; TODO: THE PROBLEM IS THAT THE FUNCTION IS DECLARED BEFORE GLOBAL VARIABLES, SO THE STATE IS EMPTY, NEED TO GET IT TO GET THE
+    ; GLOBAL VARIABLES AS PART OF THE LAMBDA INSTEAD
     (list (operand2 statement) (operand3 statement) (lambda (newenv) (get-function-environment (get-declare-var statement) environment newenv)))))
 
 ; TODO: move to the right place, possibly rename
@@ -387,11 +389,7 @@
     ((operand2 closure) environment))) ;(list (list (operator closure) (cdadar environment))))) ;((operand2 statement) environment)))   (list (list (operator closure) (cdadar environment)))))
 (define exists-declare-value? exists-operand2?)
 (define get-function-body operand1)
-(define get-function-args
-  (lambda (statement)
-    (if (list? (operand2 statement))
-        (operand2 statement)
-        (cons (operand2 statement) '()))))
+(define get-function-args cddr)
 (define get-function-params operator)
 (define get-assign-lhs operand1)
 (define get-assign-rhs operand2)
