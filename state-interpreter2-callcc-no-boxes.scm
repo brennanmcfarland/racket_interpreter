@@ -26,8 +26,12 @@
 (define topframe car)
 (define remainingframes cdr)
 
-; get global variables from the environment
+; returns a 
 (define get-globals
+  (lambda (environment)
+    (if (or (eq? environment (newenvironment)) (eq? (pop-frame environment) (newenvironment)))
+        (variables-in-environment'() environment '())
+        (get-globals (pop-frame environment)))))
   
 
 ; does a variable exist in the environment?
@@ -156,12 +160,16 @@
 ; if the function argument is not null, add it to the returned list of variables (used in making the closure)
 ; TODO: fix this and variables to be consistent with naming conventions
 (define variables-in-environment
+  (lambda (funcenvironment globals function)
+    (myappend (globals (variables-in-environment-helper funcenvironment function)))))
+
+(define variables-in-environment-helper
   (lambda (environment function)
     (cond
-      ((not (null? function)) (cons function (variables-in-environment environment '())))
+      ((not (null? function)) (cons function (variables-in-environment-helper environment '())))
       ((eq? environment (newenvironment)) '())
       ((eq? environment '()) '())
-      (else (myappend (variables (topframe environment)) (variables-in-environment (pop-frame environment) '()))))))
+      (else (myappend (variables (topframe environment)) (variables-in-environment-helper (pop-frame environment) '()))))))
 
 ; Returns the list of variables from a frame
 (define variables

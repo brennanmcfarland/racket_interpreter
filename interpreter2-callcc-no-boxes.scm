@@ -346,7 +346,7 @@
 ; get the function environment given the current environment
 (define get-function-environment
   (lambda (name funcenvironment currentenvironment)
-    (get-function-binding-values (variables-in-environment funcenvironment name) funcenvironment currentenvironment)))
+    (get-function-binding-values (variables-in-environment (get-globals currentenvironment) funcenvironment name) funcenvironment currentenvironment)))
 
 
 ;; (trace get-function-environment)
