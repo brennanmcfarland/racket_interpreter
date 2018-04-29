@@ -62,16 +62,21 @@
       ((eq? 'begin (statement-type statement)) (interpret-block statement environment return break continue throw))
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
-      ((eq? 'function (statement-type statement)) (bind-function statement environment return break continue throw))
+      ((eq? 'function (statement-type statement)) (bind-function statement environment))
       ((eq? 'funcall (statement-type statement)) (interpret-function (get-function-closure (statement) environment) (get-function-args statement) environment return break continue throw))
+      ((eq? 'class (statement-type statement)) (bind-class statement environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
 
 ; (trace interpret-statement)
 ; bind a function name to its closure
 ; we bind the function as if it were any other variable, with its closure as the value
 (define bind-function
-  (lambda (statement environment return break continue throw)
+  (lambda (statement environment)
     (insert (get-declare-var statement) (make-function-closure statement environment) environment)))
+
+(define bind-static-function
+  (lambda (statement environment)
+    (insert (get-declare-var statement) (make-function-closure statement (newenvironment)) environment)))
 
 (define make-function-closure
   (lambda (statement environment)
@@ -86,45 +91,43 @@
 ; a class closure contains these elements in order:
 ; 1. the super class (name)
 ; 2. instance field names
-; 3. static field bindings (names and values)
-; 4. method bindings (names and values)
-; 5. static method bindings (names and values)
+; 3. method bindings (names and values), including main if it exists
 (define make-class-closure
   (lambda (statement environment)
-    (cons (superclass-name statement) (closure-fields-and-methods (class-body statement) environment))))
+    (list (superclass-name statement) (closure-fields-and-methods (class-body statement) environment '())))) ;the closure is null since it gets overridden anyway
 
 (define closure-fields-and-methods
   (lambda (body environment closure)
     (cond
-      ((null? body) '(() (newenvironment) () ())) ; instance field names, static field bindings, method bindings, static method bindings
+      ((null? body) (list () (newenvironment))) ; instance field names, method bindings (including main if it exists for this class)
       ((eq? 'var (statement-type (nextof body))) (add-class-closure-field (get-declare-var (nextof body)) (closure-fields-and-methods (remaining body) environment closure)))
-      ((eq? 'static-var (statement-type (nextof body))) (add-class-closure-static-field (nextof body) (closure-fields-and-methods (remaining body) environment closure)))
       ((eq? 'function (statement-type (nextof body))) (add-class-closure-method (nextof body) (closure-fields-and-methods (remaining body) environment closure)))
-      ((eq? 'static-function (statement-type (nextof body))) )
-      ; TODO: get static fields only for the environment for this function and add its binding,
-      ; may just be able to add it to the regular list of functions
+      ((eq? 'static-function (statement-type (nextof body))) (add-class-closure-main (nextof body) (closure-fields-and-methods (remaining body) environment closure)))
+      (else myerror "unable to create class closure bindings" body)
       )))
 
 (define class-closure-body-fields car)
-(define class-closure-body-static-fields cadr)
-(define class-closure-body-methods caddr)
+(define class-closure-body-methods cadr)
+
 (define add-class-closure-field
   (lambda (name closure)
-    (list (cons name (class-closure-body-fields closure)) (class-closure-body-static-fields closure) (class-closure-body-methods closure))))
-
-(define add-class-closure-static-field
-  (lambda (statement closure)
-    (list (class-closure-body-fields closure) (interpret-declare statement (class-closure-body-static-fields closure)) (class-closure-body-methods closure))))
+    (list (cons name (class-closure-body-fields closure)) (class-closure-body-methods closure))))
 
 ; TODO: the function interpret part isn't quite right
 (define add-class-closure-method
   (lambda (statement closure)
-    (list (class-closure-body-fields closure) (class-closure-body-static-fields closure) ((interpret-function (get-function-closure (statement) environment) (get-function-args statement) environment return break continue throw)))))
+    (list (class-closure-body-fields closure) (bind-function statement (class-closure-body-methods closure)))))
+
+(define add-class-closure-main
+  (lambda (statement closure)
+    (list (class-closure-body-fields closure) (bind-static-function statement (class-closure-body-methods closure)))))
 
 (define superclass-name
   (lambda (lis)
-    (car (cdaddr lis))))
-(define class-body cdddr)
+    (if (null? (caddr lis))
+        '()
+        (car (cdaddr lis)))))
+(define class-body cadddr)
 
 ; (trace bind-function)
 ; Calls the return continuation with the given expression value
