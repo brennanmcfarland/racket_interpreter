@@ -12,6 +12,9 @@
   (lambda ()
     '(() ())))
 
+; create a new class closure
+(define new-
+
 ; add a frame onto the top of the environment
 (define push-frame
   (lambda (environment)

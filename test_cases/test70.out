@@ -1,0 +1,5 @@
+class List {
+	static function main() {
+		return 15;
+	}
+}

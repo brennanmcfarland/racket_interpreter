@@ -12,7 +12,7 @@
 ; run all tests
 (define test_all
   (lambda ()
-    (test_case 1 60)))
+    (test_case 1 80)))
 
 ; run up to max numbered tests
 (define test_first
@@ -28,7 +28,7 @@
 (define test_case
   (lambda (testnum maxtst)
     (cond
-      ((< testnum 40) (test_case 41 maxtst))
+      ((< testnum 60) (test_case 61 maxtst))
       ((> testnum maxtst) "all tests passed")
       ((not (file-exists? (string-append "test_cases/test" (string-append (number->string testnum) ".out")))) (test_case (+ testnum 1) maxtst))
       ((not (eq? (interpret (string-append "test_cases/test" (string-append (number->string testnum) ".html"))) (interpret (string-append "test_cases/test" (string-append (number->string testnum) ".out"))))) (error (string-append "test " (string-append (number->string testnum) " failed"))))

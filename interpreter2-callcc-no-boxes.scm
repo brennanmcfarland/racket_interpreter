@@ -1,7 +1,7 @@
 ; If you are using racket instead of scheme, uncomment these two lines, comment the (load "simpleParser.scm") and uncomment the (require "simpleParser.scm")
 ; #lang racket
 ; (require "simpleParser.scm")
-(load "functionParser.scm")
+(load "classParser.scm")
 (load "state-interpreter2-callcc-no-boxes.scm")
 (load "bindings.scm")
 (require racket/trace)
