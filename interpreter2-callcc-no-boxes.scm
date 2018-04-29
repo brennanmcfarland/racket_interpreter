@@ -71,8 +71,36 @@
 ; we bind the function as if it were any other variable, with its closure as the value
 (define bind-function
   (lambda (statement environment return break continue throw)
-    (insert (get-declare-var statement) (make-declare-closure statement environment) environment)))
-    
+    (insert (get-declare-var statement) (make-function-closure statement environment) environment)))
+
+(define make-function-closure
+  (lambda (statement environment)
+    (list (operand2 statement) (operand3 statement) (lambda (newenv) (get-function-environment (get-declare-var statement) environment newenv)))))
+
+; bind a class name to its closure
+(define bind-class
+  (lamdba (statement environment return break continue throw)
+          (insert (get-declare-var statement) (make-class-closure statement environment) environment)))
+
+; make the closure for a class (when it's declared)
+; a class closure contains these elements in order:
+; 1. the super class (name)
+; 2. instance field names
+; 3. static field bindings (names and values)
+; 4. method bindings (names and values)
+; NOTE: variable defs must be before methods, but I think it's supposed to be that way
+(define make-class-closure
+  (lambda (statement environment)
+    (cons (superclass-name statement) (closure-fields-and-methods (class-body statement) environment))))
+
+; TODO
+(define closure-fields-and-methods
+  (lambda (body environment)
+    ()))
+
+
+(define superclass-name cadaddr)
+(define class-body cdddr)
 
 ; (trace bind-function)
 ; Calls the return continuation with the given expression value
@@ -373,9 +401,6 @@
 (define get-expr operand1)
 (define get-declare-var operand1)
 (define get-declare-value operand2)
-(define make-declare-closure
-  (lambda (statement environment)
-    (list (operand2 statement) (operand3 statement) (lambda (newenv) (get-function-environment (get-declare-var statement) environment newenv)))))
 
 ; TODO: move to the right place, possibly rename
 (define get-function-closure
@@ -412,7 +437,7 @@
 ; (trace get-expr)
 ; (trace get-declare-var)
 ; (trace get-declare-value)
-; (trace make-declare-closure)
+; (trace make-function-closure)
 ; (trace get-function-closure)
 ; (trace compose-closure-environment)
 ; (trace exists-declare-value?)
