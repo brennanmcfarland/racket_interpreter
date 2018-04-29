@@ -123,6 +123,12 @@
 (define class-closure-body-fields car)
 (define class-closure-body-methods cadr)
 
+; TODO: this isn't right by any means, but what it needs to do is get the closure of the class from the program,
+; then get the main method from the closure and call it
+(define call-main-method
+  (lambda (program class)
+    (lookup 'main (class-closure-body-methods (get-closure class program)) (class-closure-body-methods (get-closure class program)))))
+
 (define add-class-closure-field
   (lambda (name closure)
     (list (cons name (class-closure-body-fields closure)) (class-closure-body-methods closure))))
