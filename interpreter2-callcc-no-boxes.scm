@@ -88,16 +88,38 @@
 ; 2. instance field names
 ; 3. static field bindings (names and values)
 ; 4. method bindings (names and values)
-; NOTE: variable defs must be before methods, but I think it's supposed to be that way
+; 5. static method bindings (names and values)
 (define make-class-closure
   (lambda (statement environment)
     (cons (superclass-name statement) (closure-fields-and-methods (class-body statement) environment))))
 
-; TODO
 (define closure-fields-and-methods
-  (lambda (body environment)
-    ()))
+  (lambda (body environment closure)
+    (cond
+      ((null? body) '(() (newenvironment) () ())) ; instance field names, static field bindings, method bindings, static method bindings
+      ((eq? 'var (statement-type (nextof body))) (add-class-closure-field (get-declare-var (nextof body)) (closure-fields-and-methods (remaining body) environment closure)))
+      ((eq? 'static-var (statement-type (nextof body))) (add-class-closure-static-field (nextof body) (closure-fields-and-methods (remaining body) environment closure)))
+      ((eq? 'function (statement-type (nextof body))) (add-class-closure-method (nextof body) (closure-fields-and-methods (remaining body) environment closure)))
+      ((eq? 'static-function (statement-type (nextof body))) )
+      ; TODO: get static fields only for the environment for this function and add its binding,
+      ; may just be able to add it to the regular list of functions
+      )))
 
+(define class-closure-body-fields car)
+(define class-closure-body-static-fields cadr)
+(define class-closure-body-methods caddr)
+(define add-class-closure-field
+  (lambda (name closure)
+    (list (cons name (class-closure-body-fields closure)) (class-closure-body-static-fields closure) (class-closure-body-methods closure))))
+
+(define add-class-closure-static-field
+  (lambda (statement closure)
+    (list (class-closure-body-fields closure) (interpret-declare statement (class-closure-body-static-fields closure)) (class-closure-body-methods closure))))
+
+; TODO: the function interpret part isn't quite right
+(define add-class-closure-method
+  (lambda (statement closure)
+    (list (class-closure-body-fields closure) (class-closure-body-static-fields closure) ((interpret-function (get-function-closure (statement) environment) (get-function-args statement) environment return break continue throw)))))
 
 (define superclass-name
   (lambda (lis)
