@@ -102,13 +102,14 @@
     (list (superclass-name statement) (closure-fields-and-methods (class-body statement) environment '())))) ;the closure is null since it gets overridden anyway
 
 (define object-truetype cadr)
+(define object-field-values caddr)
 ; make the closure for an object (when it's instantiated)
 ; an object closure contains these elements in order:
 ; 1. class/runtime/true type name
 ; 2. instance field values (TODO: including instance field values from the parent class)
 (define make-object-closure
   (lambda (statement truetype environment)
-    (list (object-truetype statement) (lambda (newenv) (get-object-environment truetype)))))
+    (list (object-truetype statement) (lambda (newenv) (init-object-environment truetype environment)))))
     
 (define closure-fields-and-methods
   (lambda (body environment closure)
@@ -423,10 +424,17 @@
   (lambda (name funcenvironment currentenvironment)
     (get-function-binding-values (variables-in-environment funcenvironment name) funcenvironment currentenvironment)))
 
-(define get-object-environment
-  (lambda (truetype)
-    (; TODO: get the class closure and from it the list of variable names, then for each one set a default value (false)
-     )))
+; sets all values in the object's environment to a default value
+(define init-object-environment
+  (lambda (truetype environment)
+    (set-all-values (class-closure-body-fields (get-closure truetype environment)) 'false)))
+
+; helper function to set all values of a list to the same value
+(define set-all-values
+  (lambda (lis val)
+    (if (null? lis)
+        '()
+        (cons val (set-all-values lis val)))))
 
 ;; (trace get-function-environment)
 ; TODO: rename this and move to the appropriate place
