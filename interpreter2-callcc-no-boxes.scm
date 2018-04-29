@@ -28,12 +28,12 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment return break continue throw)
-    (eval-function (get-function-closure 'main (create-bindings program return break continue throw)) '()
+    (eval-function (get-closure 'main (create-bindings program return break continue throw)) '()
                         (create-bindings program return break continue throw) return break continue throw)))
 
 ; (trace run-program)
 ; for the "outer layer" of the interpreter
-; handles binding of functions and global variables
+; handles class bindings and the bindings for all class members before the program is evaluated
 ; returns the environment with bindings
 (define create-bindings
   (lambda (program return break continue throw)
@@ -63,7 +63,7 @@
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw))
       ((eq? 'function (statement-type statement)) (bind-function statement environment))
-      ((eq? 'funcall (statement-type statement)) (interpret-function (get-function-closure (statement) environment) (get-function-args statement) environment return break continue throw))
+      ((eq? 'funcall (statement-type statement)) (interpret-function (get-closure (statement) environment) (get-function-args statement) environment return break continue throw))
       ((eq? 'class (statement-type statement)) (bind-class statement environment return break continue throw))
       (else (myerror "Unknown statement:" (statement-type statement))))))
 
@@ -87,6 +87,11 @@
   (lambda (statement environment return break continue throw)
           (insert (get-declare-var statement) (make-class-closure statement environment) environment)))
 
+; bind an object name to its closure
+(define bind-object
+  (lambda (statement environment)
+    (insert (get-declare-var statement) (make-object-closure statement environment) environment)))
+
 ; make the closure for a class (when it's declared)
 ; a class closure contains these elements in order:
 ; 1. the super class (name)
@@ -96,6 +101,15 @@
   (lambda (statement environment)
     (list (superclass-name statement) (closure-fields-and-methods (class-body statement) environment '())))) ;the closure is null since it gets overridden anyway
 
+(define object-truetype cadr)
+; make the closure for an object (when it's instantiated)
+; an object closure contains these elements in order:
+; 1. class/runtime/true type name
+; 2. instance field values (TODO: including instance field values from the parent class)
+(define make-object-closure
+  (lambda (statement truetype environment)
+    (list (object-truetype statement) (lambda (newenv) (get-object-environment truetype)))))
+    
 (define closure-fields-and-methods
   (lambda (body environment closure)
     (cond
@@ -249,7 +263,7 @@
     ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
      (interpret-statement-list (get-function-body statement)
-                                ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-function-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
+                                ;(actualize-parameters (get-function-args statement) (get-function-params (get-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
                                ; TODO: THIS IS WHERE THE ERROR IS, ACTUALIZE-PARAMETERS IS GETTING THE PARAMS WHEN IT SHOULD GET ARGS
                                ; the problem is that we're not passing it the arguments and it's instead using the params as the args
                                (actualize-parameters (eval-args args environment)
@@ -257,8 +271,8 @@
                                                        statement) ; TODO: it needs the function name, that's the problem
                                                       (compose-closure-environment
                                                        statement environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
-                                ;(actualize-parameters (get-function-args statement) (get-function-params (get-function-closure statement)) (compose-closure-en
-                                ;vironment (get-function-closure statement) environment))
+                                ;(actualize-parameters (get-function-args statement) (get-function-params (get-closure statement)) (compose-closure-en
+                                ;vironment (get-closure statement) environment))
                                 ;)
                                return break continue throw)))
 
@@ -311,7 +325,7 @@
       ((valid-function? expr environment)
        (call/cc
         (lambda (return)
-          (eval-function (get-function-closure (cadr expr) environment) (get-function-args expr) environment
+          (eval-function (get-closure (cadr expr) environment) (get-function-args expr) environment
                                   return
                                   (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
                                   (lambda (v env) (myerror "Uncaught exception thrown"))))))
@@ -403,6 +417,10 @@
   (lambda (name funcenvironment currentenvironment)
     (get-function-binding-values (variables-in-environment funcenvironment name) funcenvironment currentenvironment)))
 
+(define get-object-environment
+  (lambda (truetype)
+    (; TODO: get the class closure and from it the list of variable names, then for each one set a default value (false)
+     )))
 
 ;; (trace get-function-environment)
 ; TODO: rename this and move to the appropriate place
@@ -430,7 +448,7 @@
 (define get-declare-value operand2)
 
 ; TODO: move to the right place, possibly rename
-(define get-function-closure
+(define get-closure
   (lambda (name environment)
     (lookup name environment)))
 ; TODO: "
@@ -465,7 +483,7 @@
 ; (trace get-declare-var)
 ; (trace get-declare-value)
 ; (trace make-function-closure)
-; (trace get-function-closure)
+; (trace get-closure)
 ; (trace compose-closure-environment)
 ; (trace exists-declare-value?)
 ; (trace get-function-body)
