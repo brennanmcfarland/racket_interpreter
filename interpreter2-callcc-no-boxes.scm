@@ -79,7 +79,7 @@
 
 ; bind a class name to its closure
 (define bind-class
-  (lamdba (statement environment return break continue throw)
+  (lambda (statement environment return break continue throw)
           (insert (get-declare-var statement) (make-class-closure statement environment) environment)))
 
 ; make the closure for a class (when it's declared)
@@ -99,7 +99,9 @@
     ()))
 
 
-(define superclass-name cadaddr)
+(define superclass-name
+  (lambda (lis)
+    (car (cdaddr lis))))
 (define class-body cdddr)
 
 ; (trace bind-function)
