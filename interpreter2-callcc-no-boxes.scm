@@ -16,22 +16,22 @@
 
 ; The main function.  Calls parser to get the parse tree and interprets it with a new environment.  The returned value is in the environment.
 (define interpret
-  (lambda (file)
+  (lambda (file class)
     (scheme->language
      (call/cc
       (lambda (return)
-        (run-program (parser file) (newenvironment) return
+        (run-program (parser file) (newenvironment) class return
                                   (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
                                   (lambda (v env) (myerror "Uncaught exception thrown"))))))))
-; (trace interpret)
+(trace interpret)
 
 ; perform bindings and execute main() in the interpreted program
 (define run-program
-  (lambda (program environment return break continue throw)
-    (eval-function (get-closure 'main (create-bindings program return break continue throw)) '()
-                        (create-bindings program return break continue throw) return break continue throw)))
+  (lambda (program environment class return break continue throw)
+    (eval-function (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))) '() ;get main closure?
+                        (create-bindings program return break continue throw) return break continue throw class '())))
 
-; (trace run-program)
+(trace run-program)
 ; for the "outer layer" of the interpreter
 ; handles class bindings and the bindings for all class members before the program is evaluated
 ; returns the environment with bindings
@@ -39,7 +39,7 @@
   (lambda (program return break continue throw)
     (interpret-statement-list program (newenvironment) return break continue throw '() '()))) ; type and instance should never be used when creating bindings
 
-; (trace create-bindings)
+(trace create-bindings)
 ; interprets a list of statements.  The environment from each statement is used for the next ones.
 (define interpret-statement-list
   (lambda (statement-list environment return break continue throw type instance)
@@ -47,7 +47,7 @@
         environment
         (interpret-statement-list (cdr statement-list) (interpret-statement (car statement-list) environment return break continue throw type instance) return break continue throw type instance))))
 
-; (trace interpret-statement-list)
+(trace interpret-statement-list)
 ; interpret a statement in the environment with continuations for return, break, continue, throw
 (define interpret-statement
   (lambda (statement environment return break continue throw type instance)
@@ -78,7 +78,7 @@
   (lambda (statement environment)
     (get-closure (operand1 statement) (environment))))
 
-; (trace interpret-statement)
+(trace interpret-statement)
 ; bind a function name to its closure
 ; we bind the function as if it were any other variable, with its closure as the value
 (define bind-function
@@ -161,13 +161,13 @@
         (car (cdaddr lis)))))
 (define class-body cadddr)
 
-; (trace bind-function)
+(trace bind-function)
 ; Calls the return continuation with the given expression value
 (define interpret-return
   (lambda (statement environment return type instance)
     (return (eval-expression (get-expr statement) environment type instance))))
 
-; (trace interpret-return)
+(trace interpret-return)
 ; Adds a new variable binding to the environment.  There may be an assignment with the variable
 (define interpret-declare
   (lambda (statement environment type instance)
@@ -175,13 +175,13 @@
         (insert (get-declare-var statement) (eval-expression (get-declare-value statement) environment type instance) environment)
         (insert (get-declare-var statement) 'novalue environment))))
 
-; (trace interpret-declare)
+(trace interpret-declare)
 ; Updates the environment to add an new binding for a variable
 (define interpret-assign
   (lambda (statement environment type instance)
     (update (get-assign-lhs statement) (eval-expression (get-assign-rhs statement) environment type instance) environment)))
 
-; (trace interpret-assign)
+(trace interpret-assign)
 ; We need to check if there is an else condition.  Otherwise, we evaluate the expression and do the right thing.
 (define interpret-if
   (lambda (statement environment return break continue throw type instance)
@@ -190,7 +190,7 @@
       ((exists-else? statement) (interpret-statement (get-else statement) environment return break continue throw type instance))
       (else environment))))
 
-; (trace interpret-if)
+(trace interpret-if)
 ; Interprets a while loop.  We must create break and continue continuations for this loop
 (define interpret-while
   (lambda (statement environment return throw type instance)
@@ -202,7 +202,7 @@
                          environment))))
          (loop (get-condition statement) (get-body statement) environment))))))
 
-; (trace interpret-while)
+(trace interpret-while)
 ; Interprets a block.  The break, continue, and throw continuations must be adjusted to pop the environment
 (define interpret-block
   (lambda (statement environment return break continue throw type instance)
@@ -213,13 +213,13 @@
                                          (lambda (env) (continue (pop-frame env)))
                                          (lambda (v env) (throw v (pop-frame env))) type instance))))
 
-; (trace interpret-block)
+(trace interpret-block)
 ; We use a continuation to throw the proper value. Because we are not using boxes, the environment/state must be thrown as well so any environment changes will be kept
 (define interpret-throw
   (lambda (statement environment throw type instance)
     (throw (eval-expression (get-expr statement) environment type instance) environment)))
 
-; (trace interpret-throw)
+(trace interpret-throw)
 ; Interpret a try-catch-finally block
 
 ; Create a continuation for the throw.  If there is no catch, it has to interpret the finally block, and once that completes throw the exception.
@@ -240,7 +240,7 @@
                                                  (lambda (v env2) (throw v (pop-frame env2))) type instance))
                                      return break continue throw type instance)))))))
 
-; (trace create-throw-catch-continuation)
+(trace create-throw-catch-continuation)
 ; To interpret a try block, we must adjust  the return, break, continue continuations to interpret the finally block if any of them are used.
 ;  We must create a new throw continuation and then interpret the try block with the new continuations followed by the finally block with the old continuations
 (define interpret-try
@@ -257,13 +257,13 @@
                           (interpret-block try-block environment new-return new-break new-continue new-throw type instance)
                           return break continue throw type instance))))))
 
-; (trace interpret-try)
+(trace interpret-try)
 ; helper methods so that I can reuse the interpret-block method on the try and finally blocks
 (define make-try-block
   (lambda (try-statement)
     (cons 'begin try-statement)))
 
-; (trace make-try-block)
+(trace make-try-block)
 
 (define make-finally-block
   (lambda (finally-statement)
@@ -272,7 +272,7 @@
       ((not (eq? (statement-type finally-statement) 'finally)) (myerror "Incorrectly formatted finally block"))
       (else (cons 'begin (cadr finally-statement))))))
 
-; (trace make-finally-block)
+(trace make-finally-block)
 ; TODO: evaluate/update state from a function call
 ; TODO: move interpret to the right place, if it needs to be here
 ; statement is the functi
@@ -302,13 +302,13 @@
       (else (cons (eval-expression (nextof args) environment) (eval-args (remaining args) environment))))))
 
 ; TODO: may want to actualize parameters in here instead and pass it the whole function call instead of closure and args separately to make it neater
-; (trace interpret-function)
+(trace interpret-function)
 ; TODO: what about when the function changes global state?
 (define eval-function
   (lambda (statement args environment return break continue throw type instance)
     (interpret-function statement args environment return break continue throw type instance)))
 
-; (trace eval-function)
+(trace eval-function)
 ; TODO: move to helper section
 ; given the arguments and the formal parameters, add the actual parameters to the environment
 (define actualize-parameters
@@ -317,7 +317,7 @@
         (insert (nextof params) (nextof args) (actualize-parameters (remaining params) (remaining args) environment))
         environment)))
 
-; (trace actualize-parameters)
+(trace actualize-parameters)
 ; TODO: move to helper section
 (define get-actual-parameters cdr)
 (define nextof car)
@@ -328,9 +328,9 @@
   (lambda (expr)
     (or (number? expr) (or (eq? expr 'true) (or (eq? expr 'false))))))
 
-; (trace get-actual-parameters)
-; (trace nextof)
-; (trace remaining)
+(trace get-actual-parameters)
+(trace nextof)
+(trace remaining)
 ; Evaluates all possible boolean and arithmetic expressions, including constants and variables.
 (define eval-expression
   (lambda (expr environment type instance)
@@ -350,7 +350,7 @@
       ((not (list? expr)) (lookup expr environment))
       (else (eval-operator expr environment type instance)))))
 
-; (trace eval-expression)
+(trace eval-expression)
 ; TODO: move this to helper section
 ; determine if the S-expression is a function in the environment
 (define valid-function?
@@ -365,7 +365,7 @@
 ;        #t
 ;        #f)))
 
-; (trace valid-function?)
+(trace valid-function?)
 ; Evaluate a binary (or unary) operator.  Although this is not dealing with side effects, I have the routine evaluate the left operand first and then
 ; pass the result to eval-binary-op2 to evaluate the right operand.  This forces the operands to be evaluated in the proper order in case you choose
 ; to add side effects to the interpreter
@@ -376,7 +376,7 @@
       ((and (eq? '- (operator expr)) (= 2 (length expr))) (- (eval-expression (operand1 expr) environment type instance)))
       (else (eval-binary-op2 expr (eval-expression (operand1 expr) environment) environment type instance)))))
 
-; (trace eval-operator)
+(trace eval-operator)
 ; Complete the evaluation of the binary operator by evaluating the second operand and performing the operation.
 (define eval-binary-op2
   (lambda (expr op1value environment type instance)
@@ -396,7 +396,7 @@
       ((eq? '&& (operator expr)) (and op1value (eval-expression (operand2 expr) environment type instance)))
       (else (myerror "Unknown operator:" (operator expr))))))
 
-; (trace eval-binary-op2)
+(trace eval-binary-op2)
 ; Determines if two values are equal.  We need a special test because there are both boolean and integer types.
 (define isequal
   (lambda (val1 val2)
@@ -404,7 +404,7 @@
         (= val1 val2)
         (eq? val1 val2))))
 
-; (trace isequal)
+(trace isequal)
 ;-----------------
 ; HELPER FUNCTIONS
 ;-----------------
@@ -423,12 +423,12 @@
   (lambda (statement)
     (not (null? (cdddr statement)))))
 
-; (trace operator)
-; (trace operand1)
-; (trace operand2)
-; (trace operand3)
-; (trace exists-operand2?)
-; (trace exists-operand3?)
+(trace operator)
+(trace operand1)
+(trace operand2)
+(trace operand3)
+(trace exists-operand2?)
+(trace exists-operand3?)
 ; TODO: move to the right place
 ; get the function environment given the current environment
 (define get-function-environment
@@ -447,7 +447,7 @@
         '()
         (cons val (set-all-values lis val)))))
 
-;; (trace get-function-environment)
+;(trace get-function-environment)
 ; TODO: rename this and move to the appropriate place
 ; given the list of variables to update for the function environment, update them with the values from the current state
 (define get-function-binding-values
@@ -456,7 +456,7 @@
       ((null? vars) funcenvironment)
       (else (get-function-binding-values (remaining vars) (passive-update (nextof vars) (lookup (nextof vars) currentenvironment) funcenvironment) currentenvironment)))))
 
-; (trace get-function-binding-values)
+(trace get-function-binding-values)
 ; TODO: move to the right place
 ; get the next frame of the function environment given the current environment and add it to the function environment
 ;(define add-function-frame
@@ -503,28 +503,28 @@
   (lambda (catch-statement)
     (car (operand1 catch-statement))))
 
-; (trace statement-type)
-; (trace get-expr)
-; (trace get-declare-var)
-; (trace get-declare-value)
-; (trace make-function-closure)
-; (trace get-closure)
-; (trace compose-closure-environment)
-; (trace exists-declare-value?)
-; (trace get-function-body)
-; (trace get-function-args)
-; (trace get-function-params)
-; (trace get-assign-lhs)
-; (trace get-assign-rhs)
-; (trace get-condition)
-; (trace get-then)
-; (trace get-else)
-; (trace get-body)
-; (trace exists-else?)
-; (trace get-try)
-; (trace get-catch)
-; (trace get-finally)
-; (trace catch-var)
+(trace statement-type)
+(trace get-expr)
+(trace get-declare-var)
+(trace get-declare-value)
+(trace make-function-closure)
+(trace get-closure)
+(trace compose-closure-environment)
+(trace exists-declare-value?)
+(trace get-function-body)
+(trace get-function-args)
+(trace get-function-params)
+(trace get-assign-lhs)
+(trace get-assign-rhs)
+(trace get-condition)
+(trace get-then)
+(trace get-else)
+(trace get-body)
+(trace exists-else?)
+(trace get-try)
+(trace get-catch)
+(trace get-finally)
+(trace catch-var)
 ; Functions to convert the Scheme #t and #f to our languages true and false, and back.
 
 (define language->scheme
@@ -541,13 +541,13 @@
       ((eq? v #t) 'true)
       (else v))))
 
-; (trace language->scheme)
-; (trace scheme->language)
+(trace language->scheme)
+(trace scheme->language)
 ; Because the error function is not defined in R5RS scheme, I create my own:
 (define error-break (lambda (v) v))
 (call-with-current-continuation (lambda (k) (set! error-break k)))
 
-; (trace error-break)
+(trace error-break)
 
 (define myerror
   (lambda (str . vals)
@@ -557,4 +557,4 @@
                             (makestr (string-append str (string-append " " (symbol->string (car vals)))) (cdr vals))))))
       (error-break (display (string-append str (makestr "" vals)))))))
 
-; (trace myerror)
+(trace myerror)

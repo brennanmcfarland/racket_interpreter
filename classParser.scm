@@ -17,6 +17,7 @@
 
 (load "lex.scm")
 ;(require "lex.scm")
+(require racket/trace)
 
 (define parser
   (lambda (filename)
@@ -25,6 +26,7 @@
              (end-lex)
              parse-tree))))
 
+(trace parser)
 ;===============================================
 ; The recursive descent parser
 
@@ -37,6 +39,7 @@
          (let ((parsetree (class-parse)))
            (cons parsetree (program-parse)))))))
 
+(trace program-parse)
 ; a program is made up of classes.  Each class should be a name, the class that is extended,
 ; and a body nested in braces
 
@@ -52,6 +55,7 @@
                   (error 'parser "Missing left brace at start of class")
                   (list 'class (cdr classname) extendclass (class-body-parse (cdr classname)))))))))
 
+(trace class-parse)
 ; parse the extends statement on a class, if it exists
 
 (define extend-parse
@@ -66,6 +70,7 @@
               (error 'parser "Illegal superclass name")
               (list 'extends (cdr extendclass)))))))
 
+(trace extend-parse)
 ; parse the body of a class.  The body is assignment statements and method definitions.
 
 (define class-body-parse
@@ -77,6 +82,7 @@
          (let ((parsetree (top-level-parse classname)))
            (cons parsetree (class-body-parse classname)))))))
 
+(trace class-body-parse)
 ; parse the top level of a class.  The top level is a function definition (an identifier followed by a left
 ; parenthesis) or is a variable declaration.  Functions and variables can be static (class) or non-static (instance).
 
@@ -89,6 +95,7 @@
             (unget-next-symbol)
             (top-statement-parse classname #f))))))
 
+(trace top-level-parse)
 ; detect if the statement in a class definition is a variable declaration or a function definition.
 
 (define top-statement-parse
@@ -111,6 +118,7 @@
 	      (else (constructor-parse)))) 
         (else (error 'parser "Illegal start of function definition or variable declaration"))))))
 
+(trace top-statement-parse)
 ; calls function-parse to parse a function name.  It is a static function, replaces the operator
 ; at the start of the returned expression with 'static-function
 
@@ -123,6 +131,7 @@
               (cons 'static-function (cdr function-def)))
           function-def))))
 
+(trace top-function-parse)
 ; calls declare-parse to parse a variable declaration.  If it is a static variable, replaces the 
 ; operator at the start of the returned expression with 'static-var
 
@@ -132,6 +141,7 @@
         (cons 'static-var (cdr (declare-parse)))
         (declare-parse))))
 
+(trace top-declare-parse)
 ; parse a function. A function is the name, followed by a formal parameter list, 
 ; followed by the body nested in braces
 
@@ -148,6 +158,7 @@
                   (list 'function (cdr name) paramlist (compound-statement-parse))))
            (error "Illegal start of function definition")))))
 
+(trace function-parse)
 ; parse a constructor.  Very similar to a function parse but uses "constructor" instead of "function name" as the header
 (define constructor-parse
   (lambda ()
@@ -156,6 +167,7 @@
            (error 'parser "Missing left brace")
            (list 'constructor paramlist (compound-statement-parse))))))
 
+(trace constructor-parse)
 ; parse the formal parameter list.  The list is a sequence of identifiers separated by commas
 
 (define get-formalparameter-list
@@ -180,6 +192,7 @@
                  (error 'parser "Missing identifier after reference operator"))))
         (else (error 'parser "Illegal function parameter, missing right parenthesis?"))))))
 
+(trace get-formalparameter-list)
 ; parse a statement that can be an if-statement, a while-statement, or a compound statement
 ; and if none of the above, it is a simple statement
 
@@ -196,6 +209,7 @@
                 (unget-next-symbol)
                 (simple-statement-parse)))))))
 
+(trace statement-parse)
 ; parse a simple statement that can be a return, break, continue, or an assignment statement
 
 (define simple-statement-parse
@@ -214,6 +228,7 @@
              parse-statement
              (error 'parser "Missing semicolon"))))))
 
+(trace simple-statement-parse)
 ; parse a compound statement.  We already saw the left brace so continue until we see a right brace.
 
 (define compound-statement-parse
@@ -225,6 +240,7 @@
           (let ((s (statement-parse)))
             (cons s (compound-statement-parse)))))))
 
+(trace compound-statement-parse)
 ; parse a return statement: return followed by a value.
 
 (define return-parse
@@ -247,6 +263,7 @@
                         (unget-next-symbol)
                         (list 'if condition if-statement)))))))))
 
+(trace if-parse)
 ; parse a try block.  The try block is a compound statement followed by catch block and/or
 ; a finally block
 
@@ -261,6 +278,7 @@
               (error 'parser "try without catch of finally")
               (list 'try tryblock catchblock finallyblock))))))
 
+(trace try-parse)
 ; parse a catch block.  The catch block must contain a variable (the exception) inside
 ; parentheses and then a block of code.
 
@@ -281,6 +299,7 @@
                   ((not (eq? (car fourthsymbol) 'LEFTBRACE)) (error 'parser "Missing opening brace"))
                   (else (list 'catch (list (cdr secondsymbol)) (compound-statement-parse)))))))))
 
+(trace catch-parse)
 ; parse a finally block.  A finally block is a compound statement that starts with "finally"
 
 (define finally-parse
@@ -294,6 +313,7 @@
               (error 'parser "Missing opening parenthesis")
               (list 'finally (compound-statement-parse)))))))
 
+(trace finally-parse)
 ; parse a while statement: a condition followed by a statement
 
 (define while-parse
@@ -305,6 +325,7 @@
               (error 'parser "Missing closing parenthesis")
               (list 'while condition (statement-parse)))))))
 
+(trace while-parse)
 ; parse either a function or an assignment statement.  Parse the left hand side.  If it is
 ; a function call return it.  Otherwise, assume it is a variable and this is an assignment
 ; statement
@@ -316,6 +337,7 @@
           id
           (assign-parse id)))))
 
+(trace function-or-assign-parse)
 ; parse an id in an expression or statement.  The id can be a variable, a function call,
 ; or a combination using the dot operator.  This function keeps nesting varaibles and
 ; functions with the dot operator until we get something other than a dot or a parenthesis.
@@ -331,12 +353,14 @@
                 (unget-next-symbol)
                 leftvalue))))))
 
+(trace id-parse)
 ; parse a function call: an identifier followed by a parameter list
 
 (define funcall-parse
   (lambda (name)
     (cons 'funcall (cons name (get-actualparameter-list)))))
 
+(trace funcall-parse)
 ; parse a parameter list: a list with an arbitrary number of identifiers separated by commas
 
 (define get-actualparameter-list
@@ -353,6 +377,7 @@
                 ((eq? separator 'RIGHTPAREN) (list parameter))
                 (else (error 'parser "Missing comma")))))))))
 
+(trace get-actualparameter-list)
 ; parse a variable declaration: var then left-hand-side with optional = followed by a value
 
 (define declare-parse
@@ -365,7 +390,7 @@
             (unget-next-symbol)
             (cons 'var lhs))))))
     
-
+(trace declare-parse)
 ; parse an assignment statement: a left-hand-side followed by an = followed by a value
 
 (define assign-parse
@@ -375,6 +400,7 @@
           (append (list (cdr op) lhs) (list (value-parse)))
           (error 'parser "Unknown assignment operator")))))
 
+(trace assign-parse)
 ; parse the left hand side of an assignment.  Only variables are allowed.
 
 (define lhs-parse
@@ -383,6 +409,7 @@
         (list (cdr lhs))
         (error 'parser "Illegal left hand side of assignment"))))
 
+(trace lhs-parse)
 ; parse a value.  The top level of the parse is the assignment operator.
 
 (define value-parse
@@ -396,12 +423,14 @@
 ;            (unget-next-symbol)
 ;            (orterm-parse lhs))))))
 
+(trace value-parse)
 ; Parsing the value.  The top level is the assign operator
 
 (define assignterm-parse
   (lambda (firstsymbol)
     (assignterm-parse-helper (orterm-parse firstsymbol))))
 
+(trace assignterm-parse)
 ; parse the assign expression.
 
 (define assignterm-parse-helper
@@ -413,12 +442,14 @@
             (unget-next-symbol)
             firstoperand)))))
 
+(trace assignterm-parse-helper)
 ; continuing parsing the value.  The second level is the OR operator
 
 (define orterm-parse
   (lambda (firstsymbol)
     (orterm-parse-helper (andterm-parse firstsymbol))))
 
+(trace orterm-parse)
 ; parse the OR expression.
 
 (define orterm-parse-helper
@@ -430,12 +461,15 @@
             (unget-next-symbol)
             firstoperand)))))
 
+(trace orterm-parse-helper)
+
 ; the third level is the AND expression
 
 (define andterm-parse
   (lambda (firstsymbol)
     (andterm-parse-helper (equalterm-parse firstsymbol))))
 
+(trace andterm-parse)
 ; parse the AND expression.
 
 (define andterm-parse-helper
@@ -447,12 +481,14 @@
             (unget-next-symbol)
             firstoperand)))))
 
+(trace andterm-parse-helper)
 ; the next level is the equal operators
 
 (define equalterm-parse
   (lambda (firstsymbol)
     (equalterm-parse-helper (compareterm-parse firstsymbol))))
 
+(trace equalterm-parse)
 ; parse the equals expression.
 
 (define equalterm-parse-helper
@@ -464,12 +500,14 @@
             (unget-next-symbol)
             firstoperand)))))
 
+(trace equalterm-parse-helper)
 ; next we have the comparison operators
 
 (define compareterm-parse
   (lambda (firstsymbol)
     (compareterm-parse-helper (addterm-parse firstsymbol))))
 
+(trace compareterm-parse)
 ; parse the comparison expression.
 
 (define compareterm-parse-helper
@@ -481,12 +519,14 @@
             (unget-next-symbol)
             firstoperand)))))
 
+(trace compareterm-parse-helper)
 ; continue parsing the value.  The next level is the addition and subtraction operators.
 
 (define addterm-parse
   (lambda (firstsymbol)
     (addterm-parse-helper (multterm-parse firstsymbol))))
 
+(trace addterm-parse)
 ; parse the addition expression.
 
 (define addterm-parse-helper
@@ -498,12 +538,14 @@
             (unget-next-symbol)
             firstoperand)))))
 
+(trace addterm-parse-helper)
 ; continue parsing the value.  The next level is the multiplication and division operators.
 
 (define multterm-parse
   (lambda (firstsymbol)
     (multterm-parse-helper (operand-parse firstsymbol))))
 
+(trace multterm-parse)
 ; parse the multiplication expression.
 
 (define multterm-parse-helper
@@ -515,6 +557,7 @@
              (unget-next-symbol)
              firstoperand)))))
 
+(trace multterm-parse-helper)
 ; continue parsing the value.  The final level is the unary operators, variables, numbers, and nested parentheses.
 
 (define operand-parse
@@ -537,6 +580,7 @@
                                             (else (id-parse (cons 'new (cdr (funcall-parse (cdr classid)))))))))
       (else (error 'parser "Unknown statmement")))));)
 
+(trace operand-parse)
 ; parse a variable name.
 
 (define variable-parse
@@ -544,3 +588,5 @@
     (if (not (eq? (car idsymbol) 'ID))
         (error 'parser "Identifier expected")
         (cdr idsymbol))))
+
+(trace variable-parse)
