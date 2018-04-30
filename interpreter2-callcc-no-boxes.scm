@@ -66,6 +66,7 @@
       ((eq? 'funcall (statement-type statement)) (interpret-function
                                                   (get-closure (statement) (class-closure-body-methods (dot-get-type (function-dot statement) environment)))
                                                   (get-function-args statement)
+                                                  (operand1 (function-dot statement))
                                                   (get-closure (statement) (class-closure-body-methods (dot-get-type (function-dot statement) environment)))
                                                   return break continue throw type instance))
       ((eq? 'class (statement-type statement)) (bind-class statement environment return break continue throw type instance))
@@ -73,10 +74,10 @@
 
 (define function-dot cadr)
 
-; get the type/left hand side of the dot expression
+; get the type of the dot expression
 (define dot-get-type
   (lambda (statement environment)
-    (get-closure (operand1 statement) (environment))))
+    (get-closure (object-truetype (get-closure (operand1 statement)) (environment)))))
 
 (trace interpret-statement)
 ; bind a function name to its closure
@@ -277,18 +278,19 @@
 ; TODO: move interpret to the right place, if it needs to be here
 ; statement is the functi
 (define interpret-function
-  (lambda (statement args environment return break continue throw type instance)
+  (lambda (statement args newthis environment return break continue throw type instance)
     ; TODO: run the function in the closure to get the function environment, this is the part I still don't understand
      ; it's probably related to actualize-parameters
      (interpret-statement-list (get-function-body statement)
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
                                ; TODO: THIS IS WHERE THE ERROR IS, ACTUALIZE-PARAMETERS IS GETTING THE PARAMS WHEN IT SHOULD GET ARGS
                                ; the problem is that we're not passing it the arguments and it's instead using the params as the args
-                               (actualize-parameters (eval-args args environment)
+                               (insert newthis (get-closure newthis environment)
+                                (actualize-parameters (eval-args args environment)
                                                       (get-function-params
                                                        statement) 
                                                       (compose-closure-environment
-                                                       statement environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
+                                                       statement environment))) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-closure statement)) (compose-closure-en
                                 ;vironment (get-closure statement) environment))
                                 ;)
@@ -305,8 +307,8 @@
 (trace interpret-function)
 ; TODO: what about when the function changes global state?
 (define eval-function
-  (lambda (statement args environment return break continue throw type instance)
-    (interpret-function statement args environment return break continue throw type instance)))
+  (lambda (statement args this environment return break continue throw type instance)
+    (interpret-function statement args this environment return break continue throw type instance)))
 
 (trace eval-function)
 ; TODO: move to helper section
@@ -343,7 +345,7 @@
       ((valid-function? expr environment)
        (call/cc
         (lambda (return)
-          (eval-function (get-closure (cadr expr) environment) (get-function-args expr) environment
+          (eval-function (get-closure (cadr expr) environment) (get-function-args expr) instance environment
                                   return
                                   (lambda (env) (myerror "Break used outside of loop")) (lambda (env) (myerror "Continue used outside of loop"))
                                   (lambda (v env) (myerror "Uncaught exception thrown")) type instance))))
