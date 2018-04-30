@@ -91,7 +91,7 @@
 (define lookup-in-frame
   (lambda (var frame)
     (cond
-      ((not (exists-in-list? var (cdr frame))) (myerror "error: undefined variable" var)) ;variables not cdr
+      ((not (exists-in-list? var (variables frame))) (myerror "error: undefined variable" var)) ;variables not cdr
       (else (language->scheme (get-value (indexof var (variables frame)) (store frame)))))))
 
 (trace lookup-in-frame)

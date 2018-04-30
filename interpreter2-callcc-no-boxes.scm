@@ -28,7 +28,7 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment class return break continue throw)
-    (eval-function (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))) '() ;get main closure?
+    (eval-function (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))) '() '() ;get main closure?
                         (create-bindings program return break continue throw) return break continue throw class '())))
 
 (trace run-program)
