@@ -63,9 +63,20 @@
       ((eq? 'throw (statement-type statement)) (interpret-throw statement environment throw type instance))
       ((eq? 'try (statement-type statement)) (interpret-try statement environment return break continue throw type instance))
       ((eq? 'function (statement-type statement)) (bind-function statement environment type instance))
-      ((eq? 'funcall (statement-type statement)) (interpret-function (get-closure (statement) environment) (get-function-args statement) environment return break continue throw type instance))
+      ((eq? 'funcall (statement-type statement)) (interpret-function
+                                                  (get-closure (statement) (class-closure-body-methods (dot-get-type (function-dot statement) environment)))
+                                                  (get-function-args statement)
+                                                  (get-closure (statement) (class-closure-body-methods (dot-get-type (function-dot statement) environment)))
+                                                  return break continue throw type instance))
       ((eq? 'class (statement-type statement)) (bind-class statement environment return break continue throw type instance))
       (else (myerror "Unknown statement:" (statement-type statement))))))
+
+(define function-dot cadr)
+
+; get the type/left hand side of the dot expression
+(define dot-get-type
+  (lambda (statement environment)
+    (get-closure (operand1 statement) (environment))))
 
 ; (trace interpret-statement)
 ; bind a function name to its closure
@@ -275,7 +286,7 @@
                                ; the problem is that we're not passing it the arguments and it's instead using the params as the args
                                (actualize-parameters (eval-args args environment)
                                                       (get-function-params
-                                                       statement) ; TODO: it needs the function name, that's the problem
+                                                       statement) 
                                                       (compose-closure-environment
                                                        statement environment)) ; TODO: get rid of cdrs ;trace these functions and should just get appropriate output/input
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-closure statement)) (compose-closure-en
