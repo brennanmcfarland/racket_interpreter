@@ -182,6 +182,26 @@
       (else myerror "unable to create class closure bindings" body)
       )))
 
+(define object-truetype car)
+
+; given an object, create the object's environment
+; TODO: worry about nested/superclasses later
+; 1. gets the closure's methods environment
+; 2. adds the current variable binding of every variable
+(define object-environment
+  (lambda (object environment)
+    (add-object-fields-to-environment
+     (class-closure-body-fields (get-closure (object-truetype (get-closure object)) environment))
+     object
+     (class-closure-body-methods (get-closure (object-truetype (get-closure object)) environment))
+     )))
+
+(define add-object-fields-to-environment
+  (lambda (fieldnames object environment)
+    (if (null? fieldnames)
+        environment
+        (add-object-fields-to-environment (remaining fieldnames) object (insert (nextof fieldnames) (lookup-field (nextof fieldnames) object environment) environment)))))
+
 (define class-closure-body-fields car)
 (define class-closure-body-methods cadr)
 
@@ -334,7 +354,7 @@
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
                                ; TODO: THIS IS WHERE THE ERROR IS, ACTUALIZE-PARAMETERS IS GETTING THE PARAMS WHEN IT SHOULD GET ARGS
                                ; the problem is that we're not passing it the arguments and it's instead using the params as the args
-                               (insert 'this newthis
+                               (object-environment 'this (insert 'this newthis environment)
                                 (actualize-parameters (eval-args args environment)
                                                       (get-function-params
                                                        statement) 
