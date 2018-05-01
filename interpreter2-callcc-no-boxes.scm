@@ -29,15 +29,15 @@
 (define run-program
   (lambda (program environment class return break continue throw)
     (eval-function (get-closure 'main (cadr (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))))) '()
-                   (make-new class (create-bindings program return break continue throw)) ;skipping fields going for cadr of class-closure-body-methods
+                   (make-new 'this class (create-bindings program return break continue throw)) ;skipping fields going for cadr of class-closure-body-methods
                         (create-bindings program return break continue throw) return break continue throw class '())))
 
 (trace run-program)
 
 (define make-new
-  (lambda (class environment) ;insert that object into the environment , then lookup that object
-    ;(insert 'this (init-object-environment class environment) environment)))
-    (init-object-environment class environment)))
+  (lambda (name class environment) ;insert that object into the environment , then lookup that object
+    (insert name (init-object-environment class environment) environment)))
+    ;(init-object-environment class environment)))
 ; for the "outer layer" of the interpreter
 ; handles class bindings and the bindings for all class members before the program is evaluated
 ; returns the environment with bindings
@@ -72,7 +72,7 @@
       ((eq? 'funcall (statement-type statement)) (interpret-function
                                                   (get-closure (statement) (class-closure-body-methods (dot-get-type (function-dot statement) environment)))
                                                   (get-function-args statement)
-                                                  (operand1 (function-dot statement))
+                                                  (get-closure (operand1 (function-dot statement)) environment)            
                                                   (get-closure (statement) (class-closure-body-methods (dot-get-type (function-dot statement) environment)))
                                                   return break continue throw type instance))
       ((eq? 'class (statement-type statement)) (bind-class statement environment return break continue throw type instance))
@@ -93,7 +93,7 @@
                            (get-field-index (class-closure-body-fields (get-closure (object-truetype (get-closure object environment)) environment)))
                            value
                            (object-field-values (get-closure object environment)))
-                          environment))
+                          environment)))
 
 (define get-field-index
   (lambda (name fields)
@@ -179,7 +179,7 @@
 ; update the object with a new list of field values in the environment
 (define update-object-fields
   (lambda (object fields environment)
-    (update object (list (object-truetype (get-closure object environment)) (fields)) environment)
+    (update object (list (object-truetype (get-closure object environment)) (fields)) environment)))
     
 (define closure-fields-and-methods
   (lambda (body environment closure)
@@ -352,7 +352,7 @@
                                 ;(actualize-parameters (get-function-args statement) (get-function-params (get-closure (car (cdr (car (cadar environment)))))) (compose-closure-environment (get-closure (cdddr (car (cdr (car (cadar environment)))))) environment))
                                ; TODO: THIS IS WHERE THE ERROR IS, ACTUALIZE-PARAMETERS IS GETTING THE PARAMS WHEN IT SHOULD GET ARGS
                                ; the problem is that we're not passing it the arguments and it's instead using the params as the args
-                               (insert newthis (get-closure newthis environment)
+                               (insert 'this newthis
                                 (actualize-parameters (eval-args args environment)
                                                       (get-function-params
                                                        statement) 
