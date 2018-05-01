@@ -81,7 +81,7 @@
 
 ; update the named field's value in the given object
 (define update-field
-  (lambda (name value object environment) ; TODO: atm this just returns the updated list, need to create a new object closure with it and update the environment with it
+  (lambda (name value object environment)
     (update-object-fields object
                           (replace-index-field
                            (get-field-index (class-closure-body-fields (get-closure (object-truetype (get-closure object environment)) environment)))
