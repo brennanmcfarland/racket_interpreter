@@ -28,7 +28,7 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment class return break continue throw)
-    (eval-function (get-closure 'main (cadr (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))))) '() '() ;skipping fields going for cadr of class-closure-body-methods
+    (eval-function (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))) '() '() ;get main closure?
                         (create-bindings program return break continue throw) return break continue throw class '())))
 
 (trace run-program)
@@ -81,13 +81,13 @@
 
 ; update the named field's value in the given object
 (define update-field
-  (lambda (name value object environment)
+  (lambda (name value object environment) ; TODO: atm this just returns the updated list, need to create a new object closure with it and update the environment with it
     (update-object-fields object
                           (replace-index-field
                            (get-field-index (class-closure-body-fields (get-closure (object-truetype (get-closure object environment)) environment)))
                            value
                            (object-field-values (get-closure object environment)))
-                          environment))
+                          environment ))
 
 (define get-field-index
   (lambda (name fields)
@@ -137,16 +137,11 @@
   (lambda (statement environment return break continue throw type instance)
           (insert (get-declare-var statement) (make-class-closure statement environment) environment)))
 
-(trace bind-function)
-(trace bind-static-function)
-(trace make-function-closure)
-(trace bind-class)
 ; bind an object name to its closure
 (define bind-object
   (lambda (statement environment type instance)
     (insert (get-declare-var statement) (make-object-closure statement environment) environment)))
 
-(trace bind-object)
 ; make the closure for a class (when it's declared)
 ; a class closure contains these elements in order:
 ; 1. the super class (name)
@@ -158,10 +153,6 @@
 
 (define object-truetype cadr)
 (define object-field-values caddr)
-
-(trace make-class-closure)
-(trace object-truetype)
-(trace object-field-values)
 ; make the closure for an object (when it's instantiated)
 ; an object closure contains these elements in order:
 ; 1. class/runtime/true type name
@@ -188,10 +179,6 @@
 (define class-closure-body-fields car)
 (define class-closure-body-methods cadr)
 
-(trace make-object-closure)
-(trace closure-fields-and-methods)
-(trace class-closure-body-fields)
-(trace class-closure-body-methods)
 ; TODO: this isn't right by any means, but what it needs to do is get the closure of the class from the program,
 ; then get the main method from the closure and call it
 (define call-main-method
@@ -202,8 +189,6 @@
   (lambda (name closure)
     (list (cons name (class-closure-body-fields closure)) (class-closure-body-methods closure))))
 
-(trace call-main-method)
-(trace add-class-closure-field)
 ; TODO: the function interpret part isn't quite right
 (define add-class-closure-method
   (lambda (statement closure)
@@ -221,9 +206,6 @@
 (define class-body cadddr)
 
 (trace bind-function)
-(trace add-class-closure-main)
-(trace superclass-name)
-(trace class-body)
 ; Calls the return continuation with the given expression value
 (define interpret-return
   (lambda (statement environment return type instance)
