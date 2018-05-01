@@ -72,6 +72,44 @@
       ((eq? 'class (statement-type statement)) (bind-class statement environment return break continue throw type instance))
       (else (myerror "Unknown statement:" (statement-type statement))))))
 
+; lookup the value of an object's field
+(define lookup-field
+  (lambda (name object environment)
+    (get-index-field
+     (get-field-index (class-closure-body-fields (get-closure (object-truetype (get-closure object environment)) environment)))
+     (object-field-values (get-closure object environment)))))
+
+; update the named field's value in the given object
+(define update-field
+  (lambda (name value object environment)
+    (update-object-fields object
+                          (replace-index-field
+                           (get-field-index (class-closure-body-fields (get-closure (object-truetype (get-closure object environment)) environment)))
+                           value
+                           (object-field-values (get-closure object environment)))
+                          environment))
+
+(define get-field-index
+  (lambda (name fields)
+    (cond
+      ((null? fields) -1)
+      ((eq? name (nextof fields)) 0)
+      (else (+ 1 get-field-index name (remaining fields))))))
+
+(define get-index-field
+  (lambda (index fields)
+    (cond
+      ((null? fields) (myerror "illegal field index" index))
+      ((zero? index) (nextof fields))
+      (else (get-index-field (- index 1) (remaining fields))))))
+
+(define replace-index-field
+  (lambda (index value fields)
+    (cond
+      ((null? fields) (myerror "illegal field index" index))
+      ((zero? index) (cons value (remaining fields)))
+      (else (cons (nextof fields) (replace-index-field (- index 1) (remaining fields)))))))
+
 (define function-dot cadr)
 
 ; get the type of the dot expression
@@ -121,7 +159,12 @@
 ; 2. instance field values (TODO: including instance field values from the parent class)
 (define make-object-closure
   (lambda (statement truetype environment)
-    (list (object-truetype statement) (lambda (newenv) (init-object-environment truetype environment)))))
+    (list (object-truetype statement) (init-object-environment truetype environment))))
+
+; update the object with a new list of field values in the environment
+(define update-object-fields
+  (lambda (object fields environment)
+    (update object (list (object-truetype (get-closure object environment)) (fields)) environment)
     
 (define closure-fields-and-methods
   (lambda (body environment closure)
