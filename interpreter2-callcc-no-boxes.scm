@@ -28,10 +28,16 @@
 ; perform bindings and execute main() in the interpreted program
 (define run-program
   (lambda (program environment class return break continue throw)
-    (eval-function (get-closure 'main (cadr (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))))) '() '() ;skipping fields going for cadr of class-closure-body-methods
+    (eval-function (get-closure 'main (cadr (class-closure-body-methods (get-closure class (create-bindings program return break continue throw))))) '()
+                   (make-new class (create-bindings program return break continue throw)) ;skipping fields going for cadr of class-closure-body-methods
                         (create-bindings program return break continue throw) return break continue throw class '())))
 
 (trace run-program)
+
+(define make-new
+  (lambda (class environment) ;insert that object into the environment , then lookup that object
+    ;(insert 'this (init-object-environment class environment) environment)))
+    (init-object-environment class environment)))
 ; for the "outer layer" of the interpreter
 ; handles class bindings and the bindings for all class members before the program is evaluated
 ; returns the environment with bindings
