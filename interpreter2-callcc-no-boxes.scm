@@ -51,7 +51,7 @@
   (lambda (statement-list environment return break continue throw type instance)
     (if (null? statement-list)
         environment
-        (interpret-statement-list (cdr statement-list) (interpret-statement (car statement-list) environment return break continue throw type instance) return break continue throw type instance))))
+        (interpret-statement-list (remaining statement-list) (interpret-statement (nextof statement-list) environment return break continue throw type instance) return break continue throw type instance))))
 
 (trace interpret-statement-list)
 ; interpret a statement in the environment with continuations for return, break, continue, throw
@@ -109,12 +109,14 @@
       ((zero? index) (nextof fields))
       (else (get-index-field (- index 1) (remaining fields))))))
 
+(define add-to cons)
+
 (define replace-index-field
   (lambda (index value fields)
     (cond
       ((null? fields) (myerror "illegal field index" index))
-      ((zero? index) (cons value (remaining fields)))
-      (else (cons (nextof fields) (replace-index-field (- index 1) (remaining fields)))))))
+      ((zero? index) (add-to value (remaining fields)))
+      (else (add-to (nextof fields) (replace-index-field (- index 1) (remaining fields)))))))
 
 (define function-dot cadr)
 
@@ -213,7 +215,7 @@
 
 (define add-class-closure-field
   (lambda (name closure)
-    (list (cons name (class-closure-body-fields closure)) (class-closure-body-methods closure))))
+    (list (add-to name (class-closure-body-fields closure)) (class-closure-body-methods closure))))
 
 ; TODO: the function interpret part isn't quite right
 (define add-class-closure-method
@@ -276,7 +278,7 @@
 ; Interprets a block.  The break, continue, and throw continuations must be adjusted to pop the environment
 (define interpret-block
   (lambda (statement environment return break continue throw type instance)
-    (pop-frame (interpret-statement-list (cdr statement)
+    (pop-frame (interpret-statement-list (remaining statement)
                                          (push-frame environment)
                                          return
                                          (lambda (env) (break (pop-frame env)))
@@ -331,7 +333,7 @@
 ; helper methods so that I can reuse the interpret-block method on the try and finally blocks
 (define make-try-block
   (lambda (try-statement)
-    (cons 'begin try-statement)))
+    (add-to 'begin try-statement)))
 
 (trace make-try-block)
 
@@ -340,7 +342,7 @@
     (cond
       ((null? finally-statement) '(begin))
       ((not (eq? (statement-type finally-statement) 'finally)) (myerror "Incorrectly formatted finally block"))
-      (else (cons 'begin (cadr finally-statement))))))
+      (else (add-to 'begin (cadr finally-statement))))))
 
 (trace make-finally-block)
 ; TODO: evaluate/update state from a function call
@@ -365,12 +367,16 @@
                                 ;)
                                return break continue throw type instance)))
 
+(define listify
+  (lambda (val)
+    (cons val '())))
+
 (define eval-args
   (lambda (args environment)
     (cond
       ((null? args) '())
-      ((not (isprimitive? (nextof args))) (cons (eval-expression args environment) '()))
-      (else (cons (eval-expression (nextof args) environment) (eval-args (remaining args) environment))))))
+      ((not (isprimitive? (nextof args))) (listify (eval-expression args environment)))
+      (else (add-to (eval-expression (nextof args) environment) (eval-args (remaining args) environment))))))
 
 ; TODO: may want to actualize parameters in here instead and pass it the whole function call instead of closure and args separately to make it neater
 (trace interpret-function)
